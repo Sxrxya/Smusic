@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="playback_channel_name">SMUSIC Playback</string>
+    <string name="playback_channel_desc">Music playback notifications</string>
+</resources>
