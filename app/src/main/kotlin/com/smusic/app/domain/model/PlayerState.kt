@@ -18,14 +18,17 @@ data class PlayerState(
     val currentIndex: Int = -1,
     val playingFrom: String = "",
 ) {
+    val effectiveDurationMs: Long
+        get() = if (durationMs > 0) durationMs else ((currentSong?.durationSeconds ?: 0) * 1000L)
+
     val progress: Float
-        get() = if (durationMs > 0) (positionMs.toFloat() / durationMs) else 0f
+        get() = if (effectiveDurationMs > 0) (positionMs.toFloat() / effectiveDurationMs) else 0f
 
     val currentTimeFormatted: String
         get() = formatMs(positionMs)
 
     val totalTimeFormatted: String
-        get() = formatMs(durationMs)
+        get() = formatMs(effectiveDurationMs)
 
     private fun formatMs(ms: Long): String {
         val totalSeconds = ms / 1000

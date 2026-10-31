@@ -3,11 +3,18 @@ package com.smusic.app.data.api
 import android.util.Log
 import com.smusic.app.domain.model.Song
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.request.header
 import io.ktor.client.request.request
 import io.ktor.http.HttpMethod
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,23 +28,51 @@ class StreamResolver @Inject constructor(
     suspend fun resolve(videoId: String): Result<Pair<String, Int>> = withContext(Dispatchers.IO) {
         Log.d(TAG, "Resolving stream for $videoId")
 
-        // 1. Android Music Client (best for music streams)
-        val androidMusicResult = resolveWithClient(videoId, "ANDROID_MUSIC", "com.google.android.apps.youtube.music/6.42.52 (Linux; U; Android 13; en_IN; Pixel 7 Build/TQ3A.230901.001)")
+        // 1. Android VR Client (best for direct unencrypted streams)
+        val vrResult = resolveWithClient(
+            videoId,
+            "ANDROID_VR",
+            "Mozilla/5.0 (Linux; Android 12; Quest 3 Build/SQ3A.220605.009.A1) AppleWebKit/537.36 (KHTML, like Gecko) OculusBrowser/32.0.0.0.0 Safari/537.36"
+        )
+        if (vrResult.isSuccess) return@withContext vrResult
+
+        // 2. Android Creator Client
+        val creatorResult = resolveWithClient(
+            videoId,
+            "ANDROID_CREATOR",
+            "com.google.android.youtube/19.17.36 (Linux; U; Android 13; en_IN; Pixel 7 Build/TQ3A.230901.001)"
+        )
+        if (creatorResult.isSuccess) return@withContext creatorResult
+
+        // 3. Android Music Client
+        val androidMusicResult = resolveWithClient(
+            videoId,
+            "ANDROID_MUSIC",
+            "com.google.android.apps.youtube.music/6.42.52 (Linux; U; Android 13; en_IN; Pixel 7 Build/TQ3A.230901.001)"
+        )
         if (androidMusicResult.isSuccess) return@withContext androidMusicResult
 
-        // 2. iOS Client (reliable fallback, often has direct URLs)
-        val iosResult = resolveWithClient(videoId, "IOS", "com.google.ios.youtubemusic/6.42.52 (iPhone16,1; U; CPU iOS 17_5_1 like Mac OS X)")
+        // 4. iOS Client
+        val iosResult = resolveWithClient(
+            videoId,
+            "IOS",
+            "com.google.ios.youtubemusic/6.42.52 (iPhone16,1; U; CPU iOS 17_5_1 like Mac OS X)"
+        )
         if (iosResult.isSuccess) return@withContext iosResult
 
-        // 3. Android Mobile Client
-        val androidMobileResult = resolveWithClient(videoId, "ANDROID", "com.google.android.youtube/19.17.36 (Linux; U; Android 13; en_IN; Pixel 7 Build/TQ3A.230901.001)")
+        // 5. Android Mobile Client
+        val androidMobileResult = resolveWithClient(
+            videoId,
+            "ANDROID",
+            "com.google.android.youtube/19.17.36 (Linux; U; Android 13; en_IN; Pixel 7 Build/TQ3A.230901.001)"
+        )
         if (androidMobileResult.isSuccess) return@withContext androidMobileResult
 
-        // 4. TV HTML5 Embedded Client (last resort)
-        val tvResult = resolveWithClient(videoId, "TVHTML5_EMBEDDED", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
-        if (tvResult.isSuccess) return@withContext tvResult
+        // 6. External Piped API Fallback (handles ciphered tracks seamlessly)
+        val pipedResult = resolveWithPiped(videoId)
+        if (pipedResult.isSuccess) return@withContext pipedResult
 
-        Result.failure(Exception("All clients failed to resolve stream for $videoId"))
+        Result.failure(Exception("All clients and fallbacks failed to resolve stream for $videoId"))
     }
 
     private suspend fun resolveWithClient(videoId: String, clientName: String, userAgent: String): Result<Pair<String, Int>> {
@@ -56,33 +91,10 @@ class StreamResolver @Inject constructor(
             val result = InnerTubeMapper.mapPlayerResponseToStreamUrl(response)
             if (result != null) {
                 val (url, bitrate) = result
-                Log.d(TAG, "Got stream URL from $clientName (bitrate=$bitrate): ${url.take(80)}...")
-                
-                // Skip verification for HLS URLs (they are manifests, HEAD won't work reliably)
-                if (url.contains(".m3u8") || url.contains("manifest")) {
-                    Log.d(TAG, "HLS manifest detected, skipping verification")
-                    return Result.success(result)
-                }
-
-                // Verify the stream is accessible
-                if (verifyStream(url, userAgent)) {
-                    Log.d(TAG, "Successfully resolved and verified with $clientName")
-                    Result.success(result)
-                } else {
-                    Log.w(TAG, "Verification failed for $clientName, trying without verify")
-                    // Still return success - verification can fail due to network timing
-                    // ExoPlayer will handle actual playback errors
-                    Result.success(result)
-                }
+                Log.d(TAG, "Successfully resolved with $clientName (bitrate=$bitrate)")
+                Result.success(result)
             } else {
-                // Log signature cipher issues
-                response.streamingData?.adaptiveFormats?.forEach { format ->
-                    if (format.url == null && format.signatureCipher != null) {
-                        Log.w(TAG, "Format has signatureCipher but no URL (itag=${format.itag})")
-                    }
-                }
-                
-                Log.w(TAG, "$clientName: No playable URL found in response")
+                Log.w(TAG, "$clientName: No direct playable URL found in response")
                 Result.failure(Exception("No playable URL from $clientName"))
             }
         } catch (e: Exception) {
@@ -91,19 +103,38 @@ class StreamResolver @Inject constructor(
         }
     }
 
-    private suspend fun verifyStream(url: String, userAgent: String): Boolean {
-        return try {
-            val response = client.request(url) {
-                method = HttpMethod.Head
-                header("Range", "bytes=0-1")
-                header("User-Agent", userAgent)
+    private suspend fun resolveWithPiped(videoId: String): Result<Pair<String, Int>> {
+        val pipedInstances = listOf(
+            "https://api.piped.private.coffee",
+            "https://pipedapi.kavin.rocks",
+            "https://pipedapi.tokhmi.xyz"
+        )
+        for (instance in pipedInstances) {
+            try {
+                Log.d(TAG, "Attempting resolve with Piped: $instance/streams/$videoId")
+                val responseText: String = client.request("$instance/streams/$videoId") {
+                    method = HttpMethod.Get
+                    header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                }.body()
+
+                val jsonElement = Json.parseToJsonElement(responseText)
+                val jsonObj = jsonElement.jsonObject
+                val audioStreams = jsonObj["audioStreams"]?.jsonArray
+                if (audioStreams != null && audioStreams.isNotEmpty()) {
+                    val best = audioStreams.mapNotNull { it.jsonObject }.maxByOrNull {
+                        it["bitrate"]?.jsonPrimitive?.intOrNull ?: 0
+                    }
+                    val url = best?.get("url")?.jsonPrimitive?.contentOrNull
+                    val bitrate = best?.get("bitrate")?.jsonPrimitive?.intOrNull ?: 128000
+                    if (!url.isNullOrBlank()) {
+                        Log.d(TAG, "Successfully resolved stream via Piped ($instance)")
+                        return Result.success(Pair(url, bitrate))
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Piped instance $instance failed for $videoId: ${e.message}")
             }
-            val code = response.status.value
-            Log.d(TAG, "Verify stream response: $code")
-            code in 200..299 || code == 206 || code == 302 || code == 303
-        } catch (e: Exception) {
-            Log.w(TAG, "Verify stream exception: ${e.message}")
-            false
         }
+        return Result.failure(Exception("All Piped instances failed for $videoId"))
     }
 }

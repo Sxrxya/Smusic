@@ -249,7 +249,7 @@ fun PlayerScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Seek bar
-            var sliderPosition by remember(playerState.positionMs) {
+            var sliderPosition by remember(playerState.currentSong?.videoId, playerState.positionMs) {
                 mutableFloatStateOf(playerState.positionMs.toFloat())
             }
 
@@ -257,7 +257,7 @@ fun PlayerScreen(
                 value = sliderPosition,
                 onValueChange = { sliderPosition = it },
                 onValueChangeFinished = { viewModel.seekTo(sliderPosition.toLong()) },
-                valueRange = 0f..playerState.durationMs.toFloat().coerceAtLeast(1f),
+                valueRange = 0f..playerState.effectiveDurationMs.toFloat().coerceAtLeast(1f),
                 modifier = Modifier.fillMaxWidth(),
                 colors = SliderDefaults.colors(
                     thumbColor = TextPrimary,
