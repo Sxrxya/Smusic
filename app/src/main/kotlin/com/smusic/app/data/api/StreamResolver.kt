@@ -22,25 +22,25 @@ class StreamResolver @Inject constructor(
         Log.d(TAG, "Resolving stream for $videoId")
 
         // 1. Android Music Client (best for music streams)
-        val androidMusicResult = resolveWithClient(videoId, "ANDROID_MUSIC")
+        val androidMusicResult = resolveWithClient(videoId, "ANDROID_MUSIC", "com.google.android.apps.youtube.music/6.42.52 (Linux; U; Android 13; en_IN; Pixel 7 Build/TQ3A.230901.001)")
         if (androidMusicResult.isSuccess) return@withContext androidMusicResult
 
         // 2. iOS Client (reliable fallback, often has direct URLs)
-        val iosResult = resolveWithClient(videoId, "IOS")
+        val iosResult = resolveWithClient(videoId, "IOS", "com.google.ios.youtubemusic/6.42.52 (iPhone16,1; U; CPU iOS 17_5_1 like Mac OS X)")
         if (iosResult.isSuccess) return@withContext iosResult
 
         // 3. Android Mobile Client
-        val androidMobileResult = resolveWithClient(videoId, "ANDROID")
+        val androidMobileResult = resolveWithClient(videoId, "ANDROID", "com.google.android.youtube/19.17.36 (Linux; U; Android 13; en_IN; Pixel 7 Build/TQ3A.230901.001)")
         if (androidMobileResult.isSuccess) return@withContext androidMobileResult
 
         // 4. TV HTML5 Embedded Client (last resort)
-        val tvResult = resolveWithClient(videoId, "TVHTML5_EMBEDDED")
+        val tvResult = resolveWithClient(videoId, "TVHTML5_EMBEDDED", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
         if (tvResult.isSuccess) return@withContext tvResult
 
         Result.failure(Exception("All clients failed to resolve stream for $videoId"))
     }
 
-    private suspend fun resolveWithClient(videoId: String, clientName: String): Result<Pair<String, Int>> {
+    private suspend fun resolveWithClient(videoId: String, clientName: String, userAgent: String): Result<Pair<String, Int>> {
         Log.d(TAG, "Attempting resolve with $clientName")
         return try {
             val response = innerTubeApi.getPlayer(videoId, clientName)
@@ -65,7 +65,7 @@ class StreamResolver @Inject constructor(
                 }
 
                 // Verify the stream is accessible
-                if (verifyStream(url)) {
+                if (verifyStream(url, userAgent)) {
                     Log.d(TAG, "Successfully resolved and verified with $clientName")
                     Result.success(result)
                 } else {
@@ -91,12 +91,12 @@ class StreamResolver @Inject constructor(
         }
     }
 
-    private suspend fun verifyStream(url: String): Boolean {
+    private suspend fun verifyStream(url: String, userAgent: String): Boolean {
         return try {
             val response = client.request(url) {
                 method = HttpMethod.Head
                 header("Range", "bytes=0-1")
-                header("User-Agent", "com.google.android.apps.youtube.music/5.44.54 (Linux; U; Android 12; en_IN; Pixel 6 Build/SD1A.210817.036)")
+                header("User-Agent", userAgent)
             }
             val code = response.status.value
             Log.d(TAG, "Verify stream response: $code")
