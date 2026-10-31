@@ -138,7 +138,7 @@ class SMusicServiceConnection @Inject constructor(
         playJob = scope.launch {
             updateState { copy(isBuffering = true, currentSong = song) }
             
-            val streamResult = getStreamUrlUseCase(song.videoId)
+            val streamResult = getStreamUrlUseCase(song.videoId, song.title, song.artist)
             streamResult.onSuccess { (url, bitrate) ->
                 consecutiveFailures = 0
                 // Final check to ensure we are still supposed to play this song

@@ -40,7 +40,8 @@ class DownloadWorker @AssistedInject constructor(
         downloadRepository.updateDownloadProgress(videoId, DownloadState.DOWNLOADING, 0)
 
         return try {
-            val streamResult = getStreamUrlUseCase(videoId)
+            val artist = inputData.getString("artist")
+            val streamResult = getStreamUrlUseCase(videoId, title, artist)
             if (streamResult.isFailure) return Result.retry()
 
             val (url, bitrate) = streamResult.getOrThrow()
