@@ -93,11 +93,23 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadBasedOnTaste() {
+        val recentlyPlayed = _uiState.value.recentlyPlayed
+        if (recentlyPlayed.isNotEmpty()) {
+            val lastSong = recentlyPlayed.first()
+            musicRepository.getRelatedSongs(lastSong.videoId).onSuccess { related ->
+                if (related.isNotEmpty()) {
+                    _uiState.value = _uiState.value.copy(basedOnTaste = related.take(15))
+                    return
+                }
+            }
+        }
+
+        // Fallback to artist-based search if no related songs found or no recent history
         val recentArtists = musicRepository.getRecentArtistNames(3)
         if (recentArtists.isNotEmpty()) {
             val query = recentArtists.joinToString(" ") + " songs"
             musicRepository.searchSongs(query).onSuccess { songs ->
-                _uiState.value = _uiState.value.copy(basedOnTaste = songs.take(10))
+                _uiState.value = _uiState.value.copy(basedOnTaste = songs.take(15))
             }
         }
     }

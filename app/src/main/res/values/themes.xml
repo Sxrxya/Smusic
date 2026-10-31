@@ -7,7 +7,11 @@
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
-        <item name="android:windowTranslucentStatus">false</item>
-        <item name="android:windowTranslucentNavigation">false</item>
+    </style>
+
+    <style name="Theme.SMusic.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#0A0E27</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.SMusic</item>
     </style>
 </resources>

@@ -1,9 +1,16 @@
 package com.smusic.app.data.db.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "songs")
+@Entity(
+    tableName = "songs",
+    indices = [
+        Index(value = ["genre"]),
+        Index(value = ["language"])
+    ]
+)
 data class SongEntity(
     @PrimaryKey
     val videoId: String,
@@ -16,6 +23,10 @@ data class SongEntity(
     val durationSeconds: Int = 0,
     val year: String = "",
     val language: String = "",
+    val genre: String = "",
+    val mood: String = "",
+    val energy: Float = 0.5f,
+    val vocalType: String = "vocal",
     val isLiked: Boolean = false,
     val likedAt: Long? = null,
     val streamUrl: String = "",

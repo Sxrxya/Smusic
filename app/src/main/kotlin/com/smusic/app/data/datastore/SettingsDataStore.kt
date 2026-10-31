@@ -53,6 +53,9 @@ class SettingsDataStore @Inject constructor(
         val QUEUE_JSON = stringPreferencesKey("queue_json")
         val QUEUE_INDEX = intPreferencesKey("queue_index")
         val QUEUE_POSITION = intPreferencesKey("queue_position_ms")
+        val STARTUP_ANIMATION = booleanPreferencesKey("startup_animation")
+        val STARTUP_SOUND = booleanPreferencesKey("startup_sound")
+        val LAUNCH_COUNT = intPreferencesKey("launch_count")
     }
 
     val userPreferences: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
@@ -89,6 +92,9 @@ class SettingsDataStore @Inject constructor(
             blacklistedVideoIds = prefs[Keys.BLACKLISTED_IDS]?.let {
                 json.decodeFromString<List<String>>(it)
             } ?: emptyList(),
+            startupAnimationEnabled = prefs[Keys.STARTUP_ANIMATION] ?: true,
+            startupSoundEnabled = prefs[Keys.STARTUP_SOUND] ?: true,
+            launchCount = prefs[Keys.LAUNCH_COUNT] ?: 0,
         )
     }
 
@@ -226,6 +232,21 @@ class SettingsDataStore @Inject constructor(
             prefs[Keys.QUEUE_JSON] = queueJson
             prefs[Keys.QUEUE_INDEX] = index
             prefs[Keys.QUEUE_POSITION] = positionMs
+        }
+    }
+
+    suspend fun updateStartupAnimation(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.STARTUP_ANIMATION] = enabled }
+    }
+
+    suspend fun updateStartupSound(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.STARTUP_SOUND] = enabled }
+    }
+
+    suspend fun incrementLaunchCount() {
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.LAUNCH_COUNT] ?: 0
+            prefs[Keys.LAUNCH_COUNT] = current + 1
         }
     }
 

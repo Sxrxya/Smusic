@@ -14,6 +14,11 @@ data class Song(
     val durationSeconds: Int = 0,
     val year: String = "",
     val language: String = "",
+    val genre: String = "",
+    val mood: String = "",
+    val energy: Float = 0.5f,
+    val vocalType: String = "vocal", // vocal, instrumental
+    val albumArtist: String = "",
     val isLiked: Boolean = false,
     val isDownloaded: Boolean = false,
     val streamUrl: String = "",

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SMusic" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
+        <item name="android:windowSplashScreenBackground">#080B12</item>
+        <item name="android:windowSplashScreenAnimationDuration">1000</item>
+
+        <item name="android:windowBackground">@color/background_primary</item>
+        <item name="android:statusBarColor">@color/transparent</item>
+        <item name="android:navigationBarColor">@color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

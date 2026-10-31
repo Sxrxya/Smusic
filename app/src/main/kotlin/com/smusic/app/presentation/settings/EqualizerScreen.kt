@@ -1,7 +1,9 @@
 package com.smusic.app.presentation.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -60,6 +62,7 @@ fun EqualizerScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(BgPrimary)
             .statusBarsPadding()
             .verticalScroll(rememberScrollState()),
     ) {
@@ -86,11 +89,12 @@ fun EqualizerScreen(
                 FilterChip(
                     selected = isSelected,
                     onClick = { viewModel.updateStreamQuality(preset) },
-                    label = { Text(preset, color = if (isSelected) TextPrimary else TextSecondary) },
+                    label = { Text(preset, color = if (isSelected) Color.White else TextSecondary) },
                     colors = FilterChipDefaults.filterChipColors(
-                        containerColor = CardBackground,
+                        containerColor = BgCard,
                         selectedContainerColor = AccentPrimary,
                     ),
+                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
                     border = FilterChipDefaults.filterChipBorder(
                         borderColor = Color.Transparent, selectedBorderColor = Color.Transparent,
                         enabled = true, selected = isSelected,
@@ -123,9 +127,9 @@ fun EqualizerScreen(
                             .weight(1f)
                             .padding(vertical = 4.dp),
                         colors = SliderDefaults.colors(
-                            thumbColor = AccentPrimary,
+                            thumbColor = TextPrimary,
                             activeTrackColor = AccentPrimary,
-                            inactiveTrackColor = BorderDivider,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.1f),
                         ),
                     )
                     Text("-12", color = TextMuted, style = MaterialTheme.typography.labelSmall)

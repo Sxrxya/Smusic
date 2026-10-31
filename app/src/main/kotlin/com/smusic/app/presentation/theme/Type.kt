@@ -2,134 +2,138 @@ package com.smusic.app.presentation.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.smusic.app.R
 
-val SyneFamily = FontFamily(
-    Font(R.font.syne_bold, FontWeight.Bold),
-    Font(R.font.syne_extrabold, FontWeight.ExtraBold),
-)
+// Using system fonts since custom fonts are not available in the project yet
+// Syne -> sans-serif (Bold)
+// Inter -> sans-serif (Regular)
+// Outfit -> sans-serif (Medium/SemiBold)
+// IBM Plex Mono -> monospace
 
-val DmSansFamily = FontFamily(
-    Font(R.font.dm_sans_light, FontWeight.Light),
-    Font(R.font.dm_sans_regular, FontWeight.Normal),
-    Font(R.font.dm_sans_medium, FontWeight.Medium),
-    Font(R.font.dm_sans_semibold, FontWeight.SemiBold),
-    Font(R.font.dm_sans_bold, FontWeight.Bold),
-)
-
-val JetBrainsMonoFamily = FontFamily(
-    Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
-    Font(R.font.jetbrains_mono_medium, FontWeight.Medium),
-)
+val SyneFamily = FontFamily.SansSerif
+val InterFamily = FontFamily.SansSerif
+val OutfitFamily = FontFamily.SansSerif
+val MonoFamily = FontFamily.Monospace
 
 val SMusicTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = SyneFamily,
         fontWeight = FontWeight.ExtraBold,
-        fontSize = 32.sp,
-        lineHeight = 40.sp,
+        fontSize = 36.sp,
+        lineHeight = 1.1.sp,
+        letterSpacing = 0.5.sp,
         color = TextPrimary,
     ),
     displayMedium = TextStyle(
         fontFamily = SyneFamily,
         fontWeight = FontWeight.ExtraBold,
         fontSize = 28.sp,
-        lineHeight = 36.sp,
+        lineHeight = 1.2.sp,
+        letterSpacing = 0.5.sp,
         color = TextPrimary,
     ),
     displaySmall = TextStyle(
         fontFamily = SyneFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 24.sp,
-        lineHeight = 32.sp,
+        lineHeight = 1.2.sp,
+        letterSpacing = 0.5.sp,
         color = TextPrimary,
     ),
     headlineLarge = TextStyle(
-        fontFamily = SyneFamily,
+        fontFamily = OutfitFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 22.sp,
-        lineHeight = 28.sp,
+        lineHeight = 1.2.sp,
+        letterSpacing = 0.5.sp,
         color = TextPrimary,
     ),
     headlineMedium = TextStyle(
-        fontFamily = SyneFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 20.sp,
-        lineHeight = 26.sp,
+        fontFamily = OutfitFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 18.sp,
+        lineHeight = 1.3.sp,
+        letterSpacing = 0.5.sp,
         color = TextPrimary,
     ),
     headlineSmall = TextStyle(
-        fontFamily = SyneFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        lineHeight = 24.sp,
+        fontFamily = OutfitFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 16.sp,
+        lineHeight = 1.3.sp,
+        letterSpacing = 0.5.sp,
         color = TextPrimary,
     ),
     titleLarge = TextStyle(
-        fontFamily = DmSansFamily,
+        fontFamily = OutfitFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 18.sp,
-        lineHeight = 24.sp,
+        fontSize = 16.sp,
+        lineHeight = 1.3.sp,
+        letterSpacing = 0.5.sp,
         color = TextPrimary,
     ),
     titleMedium = TextStyle(
-        fontFamily = DmSansFamily,
+        fontFamily = InterFamily,
         fontWeight = FontWeight.Medium,
-        fontSize = 16.sp,
-        lineHeight = 22.sp,
+        fontSize = 14.sp,
+        lineHeight = 1.6.sp,
+        letterSpacing = 0.25.sp,
         color = TextPrimary,
     ),
     titleSmall = TextStyle(
-        fontFamily = DmSansFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
+        fontFamily = InterFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 1.5.sp,
+        letterSpacing = 0.25.sp,
         color = TextPrimary,
     ),
     bodyLarge = TextStyle(
-        fontFamily = DmSansFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
+        fontFamily = InterFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 15.sp,
+        lineHeight = 1.6.sp,
+        letterSpacing = 0.25.sp,
         color = TextSecondary,
     ),
     bodyMedium = TextStyle(
-        fontFamily = DmSansFamily,
+        fontFamily = InterFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        lineHeight = 20.sp,
+        lineHeight = 1.6.sp,
+        letterSpacing = 0.25.sp,
         color = TextSecondary,
     ),
     bodySmall = TextStyle(
-        fontFamily = DmSansFamily,
+        fontFamily = InterFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
+        fontSize = 13.sp,
+        lineHeight = 1.5.sp,
+        letterSpacing = 0.25.sp,
         color = TextMuted,
     ),
     labelLarge = TextStyle(
-        fontFamily = DmSansFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
+        fontFamily = OutfitFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 12.sp,
+        lineHeight = 1.4.sp,
+        letterSpacing = 0.5.sp,
         color = TextPrimary,
     ),
     labelMedium = TextStyle(
-        fontFamily = JetBrainsMonoFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
+        fontFamily = MonoFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 1.4.sp,
         color = TextSecondary,
     ),
     labelSmall = TextStyle(
-        fontFamily = JetBrainsMonoFamily,
+        fontFamily = InterFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 10.sp,
-        lineHeight = 14.sp,
+        fontSize = 11.sp,
+        lineHeight = 1.4.sp,
         color = TextMuted,
     ),
 )

@@ -39,4 +39,6 @@ class SettingsViewModel @Inject constructor(
     fun updateAutoDownloadLiked(enabled: Boolean) = viewModelScope.launch { settingsRepository.updateAutoDownloadLiked(enabled) }
     fun updateTheme(theme: String) = viewModelScope.launch { settingsRepository.updateTheme(theme) }
     fun updateLyricsLockscreen(enabled: Boolean) = viewModelScope.launch { settingsRepository.updateLyricsLockscreen(enabled) }
+    fun updateStartupAnimation(enabled: Boolean) = viewModelScope.launch { settingsRepository.updateStartupAnimation(enabled) }
+    fun updateStartupSound(enabled: Boolean) = viewModelScope.launch { settingsRepository.updateStartupSound(enabled) }
 }

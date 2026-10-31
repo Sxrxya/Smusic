@@ -41,12 +41,3 @@ enum class RepeatMode {
     REPEAT_ALL,
     REPEAT_ONE,
 }
-
-@Serializable
-enum class DownloadState {
-    NOT_DOWNLOADED,
-    QUEUED,
-    DOWNLOADING,
-    DOWNLOADED,
-    FAILED,
-}

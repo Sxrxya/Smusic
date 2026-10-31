@@ -1,6 +1,7 @@
 package com.smusic.app.presentation.search
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -100,6 +101,7 @@ fun SearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(BgPrimary)
             .statusBarsPadding(),
     ) {
         // Search bar
@@ -120,7 +122,8 @@ fun SearchScreen(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(CardBackground)
+                    .background(Color.White.copy(alpha = 0.05f))
+                    .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -225,18 +228,19 @@ fun SearchScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(80.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .height(100.dp)
+                            .clip(RoundedCornerShape(20.dp))
                             .background(Brush.linearGradient(category.gradient))
                             .clickable { onNavigateToCategory(categoryKey) }
-                            .padding(12.dp),
+                            .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
+                            .padding(16.dp),
                         verticalArrangement = Arrangement.Center,
                     ) {
                         Text(
                             text = category.name,
                             color = TextPrimary,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold,
                         )
                     }
                 }

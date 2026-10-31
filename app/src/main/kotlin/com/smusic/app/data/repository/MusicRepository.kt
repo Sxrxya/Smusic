@@ -6,6 +6,10 @@ import com.smusic.app.data.api.LyricsApi
 import com.smusic.app.data.db.dao.RecentlyPlayedDao
 import com.smusic.app.data.db.dao.SongDao
 import com.smusic.app.data.db.dao.SongStatsDao
+import com.smusic.app.data.db.dao.RecommendationDao
+import com.smusic.app.data.db.entity.ArtistLanguageEntity
+import com.smusic.app.data.db.entity.PlayEventEntity
+import com.smusic.app.domain.engine.LanguageResolver
 import com.smusic.app.data.db.entity.RecentlyPlayedEntity
 import com.smusic.app.data.db.entity.SongEntity
 import com.smusic.app.data.db.entity.SongStatsEntity
@@ -26,12 +30,22 @@ class MusicRepository @Inject constructor(
     private val songDao: SongDao,
     private val recentlyPlayedDao: RecentlyPlayedDao,
     private val songStatsDao: SongStatsDao,
+    private val recommendationDao: RecommendationDao,
 ) {
 
+    private val searchCache = mutableMapOf<String, Pair<Long, List<Song>>>()
+    private val CACHE_TIMEOUT = 300_000 // 5 minutes
+
     suspend fun searchSongs(query: String): Result<List<Song>> = withContext(Dispatchers.IO) {
+        val cached = searchCache[query]
+        if (cached != null && System.currentTimeMillis() - cached.first < CACHE_TIMEOUT) {
+            return@withContext Result.success(cached.second)
+        }
+
         try {
             val response = innerTubeApi.search(query)
             val songs = InnerTubeMapper.mapSearchResponseToSongs(response)
+            searchCache[query] = System.currentTimeMillis() to songs
             Result.success(songs)
         } catch (e: Exception) {
             Result.failure(e)
@@ -45,8 +59,22 @@ class MusicRepository @Inject constructor(
             if (result != null) {
                 Result.success(result)
             } else {
-                Result.failure(Exception("No stream URL available"))
+                val reason = response.playabilityStatus?.reason ?: "No stream URL available"
+                Result.failure(Exception(reason))
             }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getSongDetails(videoId: String): Result<Song> = withContext(Dispatchers.IO) {
+        try {
+            val response = innerTubeApi.getPlayer(videoId)
+            val song = InnerTubeMapper.enrichSongWithPlayerResponse(
+                Song(videoId = videoId, title = "", artist = ""),
+                response
+            )
+            Result.success(song)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -170,6 +198,16 @@ class MusicRepository @Inject constructor(
         }
     }
 
+    suspend fun getRelatedSongs(videoId: String): Result<List<Song>> = withContext(Dispatchers.IO) {
+        try {
+            val response = innerTubeApi.getNext(videoId)
+            val songs = InnerTubeMapper.mapNextResponseToSongs(response)
+            Result.success(songs)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun recordPlay(song: Song) {
         withContext(Dispatchers.IO) {
             // Save to recently played
@@ -205,7 +243,29 @@ class MusicRepository @Inject constructor(
                 )
             }
 
-            // Cache song in DB
+            // Unified Recommendation Data Recording
+            val lang = song.language
+            if (lang.isNotBlank() && song.artistId.isNotBlank()) {
+                val artistLang = recommendationDao.getArtistLanguage(song.artistId)
+                if (artistLang == null) {
+                    recommendationDao.insertArtistLanguage(ArtistLanguageEntity(song.artistId, lang))
+                } else {
+                    recommendationDao.incrementArtistPlayCount(song.artistId)
+                }
+            }
+
+            recommendationDao.insertPlayEvent(
+                PlayEventEntity(
+                    videoId = song.videoId,
+                    durationSeconds = song.durationSeconds,
+                    listenTimeSeconds = song.durationSeconds, // Simplified for now
+                    language = song.language,
+                    genre = song.genre,
+                    artistId = song.artistId
+                )
+            )
+
+            // Cache song in DB with genre and language
             val existing = songDao.getSongById(song.videoId)
             if (existing == null) {
                 songDao.insertSong(
@@ -219,11 +279,60 @@ class MusicRepository @Inject constructor(
                         thumbnailUrl = song.thumbnailUrl,
                         durationSeconds = song.durationSeconds,
                         year = song.year,
+                        language = song.language,
+                        genre = song.genre,
                     )
                 )
+            } else {
+                // Update genre/language if they were empty but now have values
+                if (existing.genre.isBlank() && song.genre.isNotBlank() ||
+                    existing.language.isBlank() && song.language.isNotBlank()
+                ) {
+                    songDao.updateSong(
+                        existing.copy(
+                            genre = if (song.genre.isNotBlank()) song.genre else existing.genre,
+                            language = if (song.language.isNotBlank()) song.language else existing.language
+                        )
+                    )
+                }
             }
         }
     }
+
+    fun getSongsByGenre(genre: String): Flow<List<Song>> {
+        return songDao.getSongsByGenre(genre).map { entities ->
+            entities.map { it.toSong() }
+        }
+    }
+
+    fun getSongsByLanguageFlow(language: String): Flow<List<Song>> {
+        return songDao.getSongsByLanguage(language).map { entities ->
+            entities.map { it.toSong() }
+        }
+    }
+
+    fun getSongsByGenreAndLanguage(genre: String, language: String): Flow<List<Song>> {
+        return songDao.getSongsByGenreAndLanguage(genre, language).map { entities ->
+            entities.map { it.toSong() }
+        }
+    }
+
+    private fun SongEntity.toSong() = Song(
+        videoId = videoId,
+        title = title,
+        artist = artist,
+        artistId = artistId,
+        album = album,
+        albumId = albumId,
+        thumbnailUrl = thumbnailUrl,
+        durationSeconds = durationSeconds,
+        year = year,
+        language = language,
+        genre = genre,
+        isLiked = isLiked,
+        streamUrl = streamUrl,
+        bitrate = bitrate
+    )
 
     fun getRecentlyPlayed(limit: Int = 30): Flow<List<Song>> {
         return recentlyPlayedDao.getRecentlyPlayed(limit).map { entities ->

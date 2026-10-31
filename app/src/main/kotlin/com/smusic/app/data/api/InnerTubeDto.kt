@@ -220,6 +220,7 @@ data class PlayabilityStatus(
 data class StreamingData(
     val adaptiveFormats: List<AdaptiveFormat>? = null,
     val expiresInSeconds: String? = null,
+    val hlsManifestUrl: String? = null,
 )
 
 @Serializable
@@ -234,6 +235,7 @@ data class AdaptiveFormat(
     val audioSampleRate: String? = null,
     val audioChannels: Int? = null,
     val quality: String? = null,
+    val signatureCipher: String? = null,
 )
 
 @Serializable
@@ -320,6 +322,85 @@ data class SubscribeButtonRenderer(
 @Serializable
 data class BrowseBackground(
     val musicThumbnailRenderer: MusicThumbnailRenderer? = null,
+)
+
+// ─── Next Request/Response ──────────────────────────────────
+@Serializable
+data class NextRequest(
+    val context: InnerTubeContext,
+    val videoId: String? = null,
+    val playlistId: String? = null,
+    val isRadio: Boolean? = null,
+)
+
+@Serializable
+data class NextResponse(
+    val contents: NextContents? = null,
+)
+
+@Serializable
+data class NextContents(
+    val singleColumnMusicWatchNextResultsRenderer: SingleColumnMusicWatchNextResultsRenderer? = null,
+)
+
+@Serializable
+data class SingleColumnMusicWatchNextResultsRenderer(
+    val tabbedRenderer: WatchNextTabbedRenderer? = null,
+)
+
+@Serializable
+data class WatchNextTabbedRenderer(
+    val watchNextTabbedResultsRenderer: WatchNextTabbedResultsRenderer? = null,
+)
+
+@Serializable
+data class WatchNextTabbedResultsRenderer(
+    val tabs: List<WatchNextTab>? = null,
+)
+
+@Serializable
+data class WatchNextTab(
+    val tabRenderer: WatchNextTabRenderer? = null,
+)
+
+@Serializable
+data class WatchNextTabRenderer(
+    val content: WatchNextTabContent? = null,
+)
+
+@Serializable
+data class WatchNextTabContent(
+    val musicQueueRenderer: MusicQueueRenderer? = null,
+)
+
+@Serializable
+data class MusicQueueRenderer(
+    val content: MusicQueueContent? = null,
+)
+
+@Serializable
+data class MusicQueueContent(
+    val playlistPanelRenderer: PlaylistPanelRenderer? = null,
+)
+
+@Serializable
+data class PlaylistPanelRenderer(
+    val contents: List<PlaylistPanelContent>? = null,
+)
+
+@Serializable
+data class PlaylistPanelContent(
+    val playlistPanelVideoRenderer: PlaylistPanelVideoRenderer? = null,
+)
+
+@Serializable
+data class PlaylistPanelVideoRenderer(
+    val title: ShelfTitle? = null,
+    val longBylineText: ShelfTitle? = null,
+    val shortBylineText: ShelfTitle? = null,
+    val videoId: String? = null,
+    val thumbnail: ThumbnailDetails? = null,
+    val lengthText: ShelfTitle? = null,
 )
 
 // ─── Lyrics ─────────────────────────────────────────────────

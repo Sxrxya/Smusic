@@ -2,6 +2,11 @@ package com.smusic.app.presentation.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
+import com.smusic.app.SMusicApp
+import com.smusic.app.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.smusic.app.presentation.theme.*
@@ -99,16 +105,47 @@ fun SettingsScreen(
         SettingsDivider()
 
         // App
-        SectionTitle("App")
-        SettingsToggle("Show lyrics on lock screen", prefs.lyricsLockscreen) { viewModel.updateLyricsLockscreen(it) }
+        SectionTitle(stringResource(R.string.app_settings))
+        SettingsToggle(stringResource(R.string.startup_animation), prefs.startupAnimationEnabled) { viewModel.updateStartupAnimation(it) }
+        SettingsToggle(stringResource(R.string.startup_sound), prefs.startupSoundEnabled) { viewModel.updateStartupSound(it) }
+        SettingsToggle(stringResource(R.string.lyrics_lockscreen), prefs.lyricsLockscreen) { viewModel.updateLyricsLockscreen(it) }
 
         SettingsDivider()
 
         // About
-        SectionTitle("About")
-        SettingsItem("App Version", "1.0.0") { }
+        SectionTitle(stringResource(R.string.about))
+        SettingsItem(
+            title = stringResource(R.string.app_version),
+            value = "1.0.0",
+            modifier = Modifier.pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = {
+                        SMusicApp.introShown = false
+                    }
+                )
+            }
+        ) { }
         SettingsClickItem("Open Source Licenses") { }
         SettingsClickItem("Privacy Policy") { }
+
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Developed by Surya with ❤️",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Text(
+                text = "Version 1.0.0",
+                style = MaterialTheme.typography.labelSmall,
+                color = TextMuted
+            )
+        }
 
         Spacer(modifier = Modifier.height(80.dp))
     }
@@ -148,9 +185,9 @@ fun SettingsToggle(title: String, checked: Boolean, onToggle: (Boolean) -> Unit)
 }
 
 @Composable
-fun SettingsItem(title: String, value: String, onClick: () -> Unit) {
+fun SettingsItem(title: String, value: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -198,9 +235,9 @@ fun SettingsSliderItem(
             onValueChange = onValueChange,
             valueRange = range,
             colors = SliderDefaults.colors(
-                thumbColor = AccentPrimary,
+                thumbColor = TextPrimary,
                 activeTrackColor = AccentPrimary,
-                inactiveTrackColor = BorderDivider,
+                inactiveTrackColor = Color.White.copy(alpha = 0.1f),
             ),
         )
     }

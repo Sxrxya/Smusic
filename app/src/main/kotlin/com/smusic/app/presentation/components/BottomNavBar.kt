@@ -3,6 +3,7 @@ package com.smusic.app.presentation.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,14 +29,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.smusic.app.presentation.navigation.Screen
 import com.smusic.app.presentation.theme.AccentPrimary
-import com.smusic.app.presentation.theme.BackgroundSurface
+import com.smusic.app.presentation.theme.AccentSecondary
+import com.smusic.app.presentation.theme.BgSurface
+import com.smusic.app.presentation.theme.PrimaryGradient
 import com.smusic.app.presentation.theme.TextMuted
 import com.smusic.app.presentation.theme.TextPrimary
 
@@ -63,14 +68,19 @@ fun BottomNavBar(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(BackgroundSurface),
+            .background(BgSurface.copy(alpha = 0.5f))
+            .border(
+                1.dp,
+                Brush.horizontalGradient(listOf(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.1f), androidx.compose.ui.graphics.Color.Transparent)),
+                RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            ),
     ) {
         miniPlayer?.invoke()
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .height(72.dp)
                 .padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
@@ -82,30 +92,44 @@ fun BottomNavBar(
                     label = "nav_color",
                 )
                 val scale by animateFloatAsState(
-                    if (isSelected) 1.1f else 1f,
+                    if (isSelected) 1.2f else 1f,
                     label = "nav_scale",
                 )
 
                 Column(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (isSelected) AccentPrimary.copy(alpha = 0.1f) else androidx.compose.ui.graphics.Color.Transparent)
                         .clickable { onNavigate(item.route) }
-                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                         .scale(scale),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Icon(
-                        imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                        contentDescription = item.label,
-                        tint = color,
-                        modifier = Modifier.size(24.dp),
-                    )
-                    Text(
-                        text = item.label,
-                        color = color,
-                        fontSize = 10.sp,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .then(
+                                if (isSelected) Modifier.background(PrimaryGradient, RoundedCornerShape(8.dp))
+                                else Modifier
+                            )
+                    ) {
+                        Icon(
+                            imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                            contentDescription = item.label,
+                            tint = if (isSelected) TextPrimary else color,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                    if (isSelected) {
+                        Text(
+                            text = item.label,
+                            color = color,
+                            fontSize = 11.sp,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
                 }
             }
         }

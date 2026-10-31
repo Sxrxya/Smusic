@@ -3,6 +3,8 @@ package com.smusic.app.presentation.player
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,7 +59,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -65,6 +69,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.smusic.app.domain.model.RepeatMode
@@ -79,6 +84,8 @@ fun PlayerScreen(
 ) {
     val playerState by viewModel.playerState.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    
+    // Single Source of Truth: Get current media item directly from controller for metadata display
     val song = playerState.currentSong
 
     LaunchedEffect(song) {
@@ -87,7 +94,7 @@ fun PlayerScreen(
 
     if (song == null) {
         Box(
-            modifier = Modifier.fillMaxSize().background(BackgroundPrimary),
+            modifier = Modifier.fillMaxSize().background(BgPrimary),
             contentAlignment = Alignment.Center,
         ) {
             Text("No song playing", color = TextMuted, style = MaterialTheme.typography.bodyLarge)
@@ -121,82 +128,98 @@ fun PlayerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        AccentSecondary.copy(alpha = 0.15f),
-                        BackgroundPrimary,
-                        BackgroundPrimary,
-                    )
-                )
-            )
-            .statusBarsPadding()
-            .navigationBarsPadding(),
+            .background(BgPrimary),
     ) {
+        // Background Blur
+        AsyncImage(
+            model = song.thumbnailUrl,
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .blur(40.dp)
+                .drawBehind {
+                    drawRect(Color.Black.copy(alpha = 0.4f))
+                },
+            contentScale = ContentScale.Crop
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Top bar
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Filled.KeyboardArrowDown, "Close", tint = TextPrimary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Filled.KeyboardArrowDown, "Close", tint = TextPrimary, modifier = Modifier.size(32.dp))
                 }
-                Text("Now Playing", color = TextSecondary, style = MaterialTheme.typography.labelLarge)
+                Text("NOW PLAYING", color = TextSecondary, style = MaterialTheme.typography.labelLarge, letterSpacing = 2.sp)
                 IconButton(onClick = { }) {
                     Icon(Icons.Filled.MoreVert, "More", tint = TextSecondary)
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Album art
-            AsyncImage(
-                model = song.highResThumbnail.ifBlank { song.thumbnailUrl },
-                contentDescription = song.title,
+            // Album art with glow
+            Box(
+                contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .fillMaxWidth(0.85f)
+                    .fillMaxWidth(0.9f)
                     .aspectRatio(1f)
-                    .clip(RoundedCornerShape(20.dp)),
-                contentScale = ContentScale.Crop,
-            )
+                    .drawBehind {
+                        drawCircle(
+                            Brush.linearGradient(listOf(AccentPrimary, AccentSecondary)),
+                            radius = size.maxDimension / 2f + 16.dp.toPx(),
+                            alpha = 0.3f
+                        )
+                    }
+            ) {
+                AsyncImage(
+                    model = song.highResThumbnail.ifBlank { song.thumbnailUrl },
+                    contentDescription = song.title,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(24.dp))
+                        .border(
+                            3.dp,
+                            Brush.linearGradient(listOf(AccentPrimary, AccentSecondary)),
+                            RoundedCornerShape(24.dp)
+                        ),
+                    contentScale = ContentScale.Crop,
+                )
+            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Song info
             Text(
                 text = song.title,
                 color = TextPrimary,
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.ExtraBold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = song.artist,
-                color = AccentPrimary,
-                style = MaterialTheme.typography.titleMedium,
+                color = AccentSecondary,
+                style = MaterialTheme.typography.headlineSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (song.album.isNotBlank()) {
-                Text(
-                    text = song.album,
-                    color = TextMuted,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Action row
             Row(
@@ -209,20 +232,21 @@ fun PlayerScreen(
                         if (uiState.isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                         "Like",
                         tint = if (uiState.isLiked) AccentPrimary else TextSecondary,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
                 IconButton(onClick = { }) {
-                    Icon(Icons.Filled.PlaylistAdd, "Add to playlist", tint = TextSecondary)
+                    Icon(Icons.Filled.PlaylistAdd, "Add", tint = TextSecondary, modifier = Modifier.size(28.dp))
                 }
                 IconButton(onClick = { }) {
-                    Icon(Icons.Filled.Download, "Download", tint = TextSecondary)
+                    Icon(Icons.Filled.Download, "Download", tint = TextSecondary, modifier = Modifier.size(28.dp))
                 }
                 IconButton(onClick = { }) {
-                    Icon(Icons.Filled.Share, "Share", tint = TextSecondary)
+                    Icon(Icons.Filled.Share, "Share", tint = TextSecondary, modifier = Modifier.size(28.dp))
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Seek bar
             var sliderPosition by remember(playerState.positionMs) {
@@ -236,26 +260,41 @@ fun PlayerScreen(
                 valueRange = 0f..playerState.durationMs.toFloat().coerceAtLeast(1f),
                 modifier = Modifier.fillMaxWidth(),
                 colors = SliderDefaults.colors(
-                    thumbColor = AccentPrimary,
-                    activeTrackColor = AccentPrimary,
-                    inactiveTrackColor = BorderDivider,
+                    thumbColor = TextPrimary,
+                    activeTrackColor = Color.Transparent,
+                    inactiveTrackColor = Color.White.copy(alpha = 0.1f),
                 ),
             )
+            // Custom Gradient Track implementation would go here, using LinearProgressIndicator as a base if needed
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.1f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(playerState.progress)
+                        .height(4.dp)
+                        .background(Brush.horizontalGradient(listOf(AccentPrimary, AccentSecondary)))
+                )
+            }
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(playerState.currentTimeFormatted, color = TextMuted, style = MaterialTheme.typography.labelMedium)
                 Text(playerState.totalTimeFormatted, color = TextMuted, style = MaterialTheme.typography.labelMedium)
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Controls row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = { viewModel.toggleShuffle() }) {
@@ -263,31 +302,37 @@ fun PlayerScreen(
                         Icons.Filled.Shuffle,
                         "Shuffle",
                         tint = if (playerState.shuffleEnabled) AccentPrimary else TextSecondary,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(28.dp),
                     )
                 }
 
-                IconButton(onClick = { viewModel.previous() }, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Filled.SkipPrevious, "Previous", tint = TextPrimary, modifier = Modifier.size(32.dp))
+                IconButton(onClick = { viewModel.previous() }, modifier = Modifier.size(56.dp)) {
+                    Icon(Icons.Filled.SkipPrevious, "Previous", tint = TextPrimary, modifier = Modifier.size(40.dp))
                 }
 
-                // Play/Pause button
-                Surface(
-                    onClick = { viewModel.playPause() },
-                    modifier = Modifier.size(64.dp),
-                    shape = CircleShape,
-                    color = AccentPrimary,
+                // Play/Pause button with double ring glow
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(84.dp)
+                        .drawBehind {
+                            drawCircle(AccentPrimary.copy(alpha = 0.2f), radius = 42.dp.toPx())
+                            drawCircle(AccentPrimary.copy(alpha = 0.1f), radius = 50.dp.toPx())
+                        }
+                        .clip(CircleShape)
+                        .background(PrimaryGradient)
+                        .clickable { viewModel.playPause() }
                 ) {
                     Icon(
                         if (playerState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                         "Play/Pause",
                         tint = TextPrimary,
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.size(48.dp),
                     )
                 }
 
-                IconButton(onClick = { viewModel.next() }, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Filled.SkipNext, "Next", tint = TextPrimary, modifier = Modifier.size(32.dp))
+                IconButton(onClick = { viewModel.next() }, modifier = Modifier.size(56.dp)) {
+                    Icon(Icons.Filled.SkipNext, "Next", tint = TextPrimary, modifier = Modifier.size(40.dp))
                 }
 
                 IconButton(onClick = { viewModel.cycleRepeatMode() }) {
@@ -301,46 +346,37 @@ fun PlayerScreen(
                             RepeatMode.OFF -> TextSecondary
                             else -> AccentPrimary
                         },
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(28.dp),
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Secondary controls
+            // Secondary controls in a glass card
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White.copy(alpha = 0.05f))
+                    .padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 IconButton(onClick = { viewModel.toggleLyricsSheet() }) {
-                    Icon(Icons.Filled.Lyrics, "Lyrics", tint = TextSecondary, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Filled.Lyrics, "Lyrics", tint = TextSecondary, modifier = Modifier.size(24.dp))
                 }
                 IconButton(onClick = { viewModel.toggleQueueSheet() }) {
-                    Icon(Icons.Filled.QueueMusic, "Queue", tint = TextSecondary, modifier = Modifier.size(22.dp))
-                }
-                IconButton(onClick = { }) {
-                    Icon(Icons.Filled.Speed, "Speed", tint = TextSecondary, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Filled.QueueMusic, "Queue", tint = TextSecondary, modifier = Modifier.size(24.dp))
                 }
                 IconButton(onClick = { viewModel.toggleSleepTimer() }) {
-                    Icon(Icons.Filled.Timer, "Timer", tint = TextSecondary, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Filled.Timer, "Timer", tint = TextSecondary, modifier = Modifier.size(24.dp))
                 }
                 IconButton(onClick = { }) {
-                    Icon(Icons.Filled.Tune, "Equalizer", tint = TextSecondary, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Filled.Tune, "Equalizer", tint = TextSecondary, modifier = Modifier.size(24.dp))
                 }
             }
 
-            // Playing from
-            if (playerState.playingFrom.isNotBlank()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Playing from: ${playerState.playingFrom}",
-                    color = TextMuted,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }

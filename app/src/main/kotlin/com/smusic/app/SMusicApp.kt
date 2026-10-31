@@ -9,8 +9,16 @@ import javax.inject.Inject
 @HiltAndroidApp
 class SMusicApp : Application(), Configuration.Provider {
 
+    companion object {
+        var introShown = false
+    }
+
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
+
+    override fun onCreate() {
+        super.onCreate()
+    }
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()

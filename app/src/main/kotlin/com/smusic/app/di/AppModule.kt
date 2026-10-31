@@ -8,6 +8,7 @@ import com.smusic.app.data.db.dao.ArtistDao
 import com.smusic.app.data.db.dao.DownloadDao
 import com.smusic.app.data.db.dao.PlaylistDao
 import com.smusic.app.data.db.dao.RecentlyPlayedDao
+import com.smusic.app.data.db.dao.RecommendationDao
 import com.smusic.app.data.db.dao.SongDao
 import com.smusic.app.data.db.dao.SongStatsDao
 import dagger.Module
@@ -84,4 +85,7 @@ object AppModule {
 
     @Provides
     fun provideSongStatsDao(db: SMusicDatabase): SongStatsDao = db.songStatsDao()
+
+    @Provides
+    fun provideRecommendationDao(db: SMusicDatabase): RecommendationDao = db.recommendationDao()
 }

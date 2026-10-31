@@ -105,16 +105,55 @@ object InnerTubeMapper {
     fun mapPlayerResponseToStreamUrl(response: PlayerResponse): Pair<String, Int>? {
         if (response.playabilityStatus?.status != "OK") return null
 
-        val audioFormats = response.streamingData?.adaptiveFormats
+        val streamingData = response.streamingData
+
+        // Try HLS first as it's often more reliable for playback
+        streamingData?.hlsManifestUrl?.let {
+            if (it.isNotEmpty()) return Pair(it, 0)
+        }
+
+        val audioFormats = streamingData?.adaptiveFormats
             ?.filter { it.mimeType?.contains("audio") == true }
             ?.sortedByDescending { it.bitrate ?: 0 }
             ?: return null
 
         val bestFormat = audioFormats.firstOrNull() ?: return null
-        val url = bestFormat.url ?: return null
+        
+        // If url is missing, it might be in signatureCipher
+        val url = bestFormat.url ?: bestFormat.signatureCipher?.let { cipher ->
+            try {
+                // Simple parsing of signatureCipher if present
+                // url=...&s=...&sp=...
+                val params = cipher.split("&").associate { 
+                    val parts = it.split("=")
+                    if (parts.size == 2) {
+                        val key = parts[0]
+                        val value = java.net.URLDecoder.decode(parts[1], "UTF-8")
+                        key to value
+                    } else "" to ""
+                }
+                params["url"]
+            } catch (e: Exception) {
+                null
+            }
+        } ?: return null
+
         val bitrate = bestFormat.bitrate ?: 0
 
         return Pair(url, bitrate)
+    }
+
+    fun enrichSongWithPlayerResponse(song: Song, response: PlayerResponse): Song {
+        val details = response.videoDetails ?: return song
+        
+        return song.copy(
+            title = if (song.title.isEmpty()) details.title ?: "" else song.title,
+            artist = if (song.artist.isEmpty()) details.author ?: "" else song.artist,
+            durationSeconds = if (song.durationSeconds <= 0) details.lengthSeconds?.toIntOrNull() ?: 0 else song.durationSeconds,
+            thumbnailUrl = if (song.thumbnailUrl.isEmpty()) {
+                details.thumbnail?.thumbnails?.maxByOrNull { it.width ?: 0 }?.url ?: ""
+            } else song.thumbnailUrl
+        )
     }
 
     fun mapBrowseResponseToSongs(response: BrowseResponse): List<Song> {
@@ -155,6 +194,63 @@ object InnerTubeMapper {
             description = description,
             topSongs = topSongs,
         )
+    }
+
+    fun mapNextResponseToSongs(response: NextResponse): List<Song> {
+        val results = mutableListOf<Song>()
+        val contents = response.contents?.singleColumnMusicWatchNextResultsRenderer
+            ?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.firstOrNull()
+            ?.tabRenderer?.content?.musicQueueRenderer?.content?.playlistPanelRenderer?.contents
+            ?: return results
+
+        for (content in contents) {
+            val renderer = content.playlistPanelVideoRenderer ?: continue
+            val videoId = renderer.videoId ?: continue
+            val title = renderer.title?.runs?.firstOrNull()?.text ?: continue
+            
+            val artistRuns = renderer.longBylineText?.runs ?: renderer.shortBylineText?.runs ?: emptyList()
+            var artist = ""
+            var artistId = ""
+            var album = ""
+            var albumId = ""
+
+            for (run in artistRuns) {
+                val text = run.text ?: continue
+                if (text == " • " || text == " & " || text == ", ") continue
+                
+                val browseId = run.navigationEndpoint?.browseEndpoint?.browseId
+                val pageType = run.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs
+                    ?.browseEndpointContextMusicConfig?.pageType
+
+                if (pageType == "MUSIC_PAGE_TYPE_ARTIST") {
+                    artist = text
+                    artistId = browseId ?: ""
+                } else if (pageType == "MUSIC_PAGE_TYPE_ALBUM") {
+                    album = text
+                    albumId = browseId ?: ""
+                } else if (artist.isEmpty()) {
+                    artist = text
+                }
+            }
+
+            val thumbnailUrl = renderer.thumbnail?.thumbnails?.maxByOrNull { it.width ?: 0 }?.url ?: ""
+            val durationText = renderer.lengthText?.runs?.firstOrNull()?.text ?: ""
+            val durationSeconds = parseDuration(durationText)
+
+            results.add(
+                Song(
+                    videoId = videoId,
+                    title = title,
+                    artist = artist,
+                    artistId = artistId,
+                    album = album,
+                    albumId = albumId,
+                    thumbnailUrl = thumbnailUrl,
+                    durationSeconds = durationSeconds,
+                )
+            )
+        }
+        return results
     }
 
     fun mapLrcToLyricLines(lrcContent: String?): List<LyricLine> {

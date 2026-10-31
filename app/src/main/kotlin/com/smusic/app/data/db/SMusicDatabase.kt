@@ -7,6 +7,9 @@ import com.smusic.app.data.db.dao.ArtistDao
 import com.smusic.app.data.db.dao.DownloadDao
 import com.smusic.app.data.db.dao.PlaylistDao
 import com.smusic.app.data.db.dao.RecentlyPlayedDao
+import com.smusic.app.data.db.dao.RecommendationDao
+import com.smusic.app.data.db.entity.ArtistLanguageEntity
+import com.smusic.app.data.db.entity.PlayEventEntity
 import com.smusic.app.data.db.dao.SongDao
 import com.smusic.app.data.db.dao.SongStatsDao
 import com.smusic.app.data.db.entity.AlbumEntity
@@ -28,8 +31,10 @@ import com.smusic.app.data.db.entity.SongStatsEntity
         RecentlyPlayedEntity::class,
         DownloadEntity::class,
         SongStatsEntity::class,
+        PlayEventEntity::class,
+        ArtistLanguageEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class SMusicDatabase : RoomDatabase() {
@@ -40,4 +45,5 @@ abstract class SMusicDatabase : RoomDatabase() {
     abstract fun recentlyPlayedDao(): RecentlyPlayedDao
     abstract fun downloadDao(): DownloadDao
     abstract fun songStatsDao(): SongStatsDao
+    abstract fun recommendationDao(): RecommendationDao
 }

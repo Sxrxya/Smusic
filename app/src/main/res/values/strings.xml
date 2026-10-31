@@ -158,6 +158,9 @@
     <string name="theme_dark">Dark</string>
     <string name="theme_amoled">AMOLED Black</string>
     <string name="lyrics_lockscreen">Show lyrics on lock screen</string>
+    <string name="startup_animation">Startup Animation</string>
+    <string name="startup_sound">Startup Sound</string>
+    <string name="intro_tagline">Your Music, Your Way</string>
     <string name="about">About</string>
     <string name="app_version">App Version</string>
     <string name="open_source_licenses">Open Source Licenses</string>
@@ -224,24 +227,6 @@
     <string name="empty_downloads">No downloads yet. Download songs for offline listening!</string>
     <string name="empty_history">No listening history yet. Start playing some music!</string>
     <string name="retry">Retry</string>
-
-    <!-- Notification -->
-    <string name="playback_channel_name">Music Playback</string>
-    <string name="playback_channel_desc">Controls for music playback</string>
-
-    <!-- Featured -->
-    <string name="featured_bollywood">Bollywood Hits</string>
-    <string name="featured_bollywood_desc">Latest chartbusters from B-town</string>
-    <string name="featured_chill">Chill Vibes</string>
-    <string name="featured_chill_desc">Relax and unwind with soothing tunes</string>
-    <string name="featured_punjabi">Punjabi Beats</string>
-    <string name="featured_punjabi_desc">High energy Punjabi bangers</string>
-    <string name="featured_indie">Indie Spotlight</string>
-    <string name="featured_indie_desc">Discover fresh independent artists</string>
-    <string name="featured_romantic">Romantic Melodies</string>
-    <string name="featured_romantic_desc">Songs that touch the heart</string>
-    <string name="featured_party">Party Anthems</string>
-    <string name="featured_party_desc">Get the party started right</string>
 
     <!-- Misc -->
     <string name="confirm">Confirm</string>

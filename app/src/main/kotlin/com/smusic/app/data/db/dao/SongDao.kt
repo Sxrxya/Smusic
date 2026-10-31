@@ -46,4 +46,13 @@ interface SongDao {
 
     @Query("SELECT * FROM songs ORDER BY addedAt DESC LIMIT :limit")
     fun getRecentSongs(limit: Int = 50): Flow<List<SongEntity>>
+
+    @Query("SELECT * FROM songs WHERE genre = :genre ORDER BY addedAt DESC")
+    fun getSongsByGenre(genre: String): Flow<List<SongEntity>>
+
+    @Query("SELECT * FROM songs WHERE language = :language ORDER BY addedAt DESC")
+    fun getSongsByLanguage(language: String): Flow<List<SongEntity>>
+
+    @Query("SELECT * FROM songs WHERE genre = :genre AND language = :language ORDER BY addedAt DESC")
+    fun getSongsByGenreAndLanguage(genre: String, language: String): Flow<List<SongEntity>>
 }

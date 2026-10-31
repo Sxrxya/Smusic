@@ -67,7 +67,7 @@ class SMusicNotificationManager @Inject constructor(
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(artist)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setLargeIcon(albumArt)
             .setContentIntent(contentIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

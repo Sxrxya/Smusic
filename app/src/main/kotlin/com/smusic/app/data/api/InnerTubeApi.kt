@@ -26,10 +26,20 @@ class InnerTubeApi @Inject constructor() {
     private val androidMusicContext = InnerTubeContext(
         client = InnerTubeClient(
             clientName = "ANDROID_MUSIC",
-            clientVersion = "5.28.1",
+            clientVersion = "5.44.54",
             hl = "en",
             gl = "IN",
-            androidSdkVersion = 30,
+            androidSdkVersion = 31,
+        )
+    )
+
+    private val androidMobileContext = InnerTubeContext(
+        client = InnerTubeClient(
+            clientName = "ANDROID",
+            clientVersion = "19.05.36",
+            hl = "en",
+            gl = "IN",
+            androidSdkVersion = 31,
         )
     )
 
@@ -48,15 +58,52 @@ class InnerTubeApi @Inject constructor() {
         }.body()
     }
 
-    suspend fun getPlayer(videoId: String): PlayerResponse {
+    private val iosContext = InnerTubeContext(
+        client = InnerTubeClient(
+            clientName = "IOS",
+            clientVersion = "19.05.36",
+            hl = "en",
+            gl = "IN",
+        )
+    )
+
+    private val tvHtml5Context = InnerTubeContext(
+        client = InnerTubeClient(
+            clientName = "TVHTML5_EMBEDDED",
+            clientVersion = "2.20230607.00.00",
+            hl = "en",
+            gl = "IN",
+        )
+    )
+
+    suspend fun getPlayer(
+        videoId: String,
+        clientType: String = "ANDROID_MUSIC"
+    ): PlayerResponse {
+        require(videoId.isNotBlank()) { "Video ID cannot be blank" }
+        require(videoId.length == 11) { "Invalid YouTube video ID: $videoId" }
+
+        val context = when (clientType) {
+            "ANDROID_MUSIC" -> androidMusicContext
+            "WEB_REMIX" -> webRemixContext
+            "IOS" -> iosContext
+            "TVHTML5_EMBEDDED" -> tvHtml5Context
+            "ANDROID" -> androidMobileContext
+            else -> androidMusicContext
+        }
+
         return client.post("$baseUrl/player?key=$apiKey") {
+            header("Content-Type", "application/json")
+            if (clientType == "ANDROID_MUSIC" || clientType == "ANDROID") {
+                header("User-Agent", "com.google.android.apps.youtube.music/5.44.54 (Linux; U; Android 12; en_IN; Pixel 6 Build/SD1A.210817.036)")
+            }
             setBody(
                 PlayerRequest(
-                    context = androidMusicContext,
+                    context = context,
                     videoId = videoId,
                     playbackContext = PlaybackContext(
                         contentPlaybackContext = ContentPlaybackContext(
-                            signatureTimestamp = 19369,
+                            signatureTimestamp = 20188,
                         )
                     ),
                 )
@@ -85,5 +132,17 @@ class InnerTubeApi @Inject constructor() {
 
     suspend fun getTrending(): BrowseResponse {
         return browse("FEmusic_trending")
+    }
+
+    suspend fun getNext(videoId: String, playlistId: String? = null): NextResponse {
+        return client.post("$baseUrl/next?key=$apiKey") {
+            setBody(
+                NextRequest(
+                    context = androidMusicContext,
+                    videoId = videoId,
+                    playlistId = playlistId,
+                )
+            )
+        }.body()
     }
 }

@@ -2,6 +2,10 @@ package com.smusic.app.presentation.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.smusic.app.data.repository.MusicRepository
+import com.smusic.app.domain.engine.LanguageResolver
+import com.smusic.app.domain.engine.RecommendationEngine
+import com.smusic.app.domain.model.LanguageContext
 import com.smusic.app.domain.model.LyricLine
 import com.smusic.app.domain.model.PlayerState
 import com.smusic.app.domain.model.Song
@@ -12,6 +16,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,6 +36,9 @@ class PlayerViewModel @Inject constructor(
     val serviceConnection: SMusicServiceConnection,
     private val getLyricsUseCase: GetLyricsUseCase,
     private val likeSongUseCase: LikeSongUseCase,
+    private val recommendationEngine: RecommendationEngine,
+    private val musicRepository: MusicRepository,
+    private val languageResolver: LanguageResolver,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlayerUiState())
@@ -39,6 +47,56 @@ class PlayerViewModel @Inject constructor(
     val playerState: StateFlow<PlayerState> = serviceConnection.playerState
 
     private var currentLyricsSongId: String? = null
+
+    init {
+        observePlayerState()
+    }
+
+    private fun observePlayerState() {
+        viewModelScope.launch {
+            playerState.collectLatest { state ->
+                state.currentSong?.let { song ->
+                    // 1. Load lyrics for the new song
+                    loadLyrics(song)
+
+                    // 2. Handle recommendations if queue is running low
+                    if (state.queue.size - state.currentIndex <= 3) {
+                        fetchAndRefillQueue(song, state.queue)
+                    }
+                    
+                    // 3. Verify song metadata/integrity if needed
+                    verifySongIntegrity(song)
+                }
+            }
+        }
+    }
+
+    private fun fetchAndRefillQueue(currentSong: Song, currentQueue: List<Song>) {
+        viewModelScope.launch {
+            val context = languageResolver.resolveFromSong(currentSong)
+            
+            musicRepository.getRelatedSongs(currentSong.videoId).onSuccess { candidates ->
+                val history = currentQueue.map { it.videoId }
+                val ranked = recommendationEngine.rankCandidates(
+                    seed = currentSong,
+                    context = context,
+                    candidates = candidates,
+                    history = history
+                )
+                
+                if (ranked.isNotEmpty()) {
+                    serviceConnection.addToQueue(ranked)
+                }
+            }
+        }
+    }
+
+    private fun verifySongIntegrity(song: Song) {
+        // Strict ID validation
+        if (song.videoId.length != 11) {
+            // Log error or handle invalid track
+        }
+    }
 
     fun loadLyrics(song: Song) {
         if (song.videoId == currentLyricsSongId) return

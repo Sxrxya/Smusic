@@ -1,5 +1,6 @@
 package com.smusic.app.data.datastore
 
+import com.smusic.app.domain.model.LanguageContext
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -27,6 +28,11 @@ data class UserPreferences(
     val loudnessEnhancer: Int = 0,
     val carMode: Boolean = false,
     val sleepTimerMinutes: Int = 0,
+    val startupAnimationEnabled: Boolean = true,
+    val startupSoundEnabled: Boolean = true,
+    val launchCount: Int = 0,
+    val recommendationsEnabled: Boolean = true,
+    val lastLanguageContext: LanguageContext = LanguageContext.UNKNOWN,
     val recentSearches: List<String> = emptyList(),
     val blacklistedVideoIds: List<String> = emptyList(),
 )

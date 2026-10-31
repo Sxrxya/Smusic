@@ -88,10 +88,36 @@ class SMusicServiceConnection @Inject constructor(
     fun playSong(song: Song, songs: List<Song>? = null, source: String = "") {
         playingFrom = source
         scope.launch {
+            // Ensure controller is connected
+            if (controller == null) {
+                connect()
+                var retryCount = 0
+                while (controller == null && retryCount < 10) {
+                    delay(500)
+                    retryCount++
+                }
+            }
+
             val queue = songs ?: listOf(song)
             val index = queue.indexOfFirst { it.videoId == song.videoId }.coerceAtLeast(0)
             queueManager.setQueue(queue, index)
             playCurrentFromQueue()
+            
+            // Spotify-like recommendation: load related songs if queue is small
+            if (queue.size <= 1) {
+                loadRelatedSongs(song.videoId)
+            }
+        }
+    }
+
+    private suspend fun loadRelatedSongs(videoId: String) {
+        musicRepository.getRelatedSongs(videoId).onSuccess { related ->
+            related.forEach { song ->
+                if (queueManager.queue.value.none { it.videoId == song.videoId }) {
+                    queueManager.addToQueue(song)
+                }
+            }
+            updateState { copy(queue = queueManager.queue.value) }
         }
     }
 
@@ -100,15 +126,37 @@ class SMusicServiceConnection @Inject constructor(
         scope.launch { playCurrentFromQueue() }
     }
 
+    private var playJob: Job? = null
+
     private suspend fun playCurrentFromQueue() {
         val song = queueManager.currentSong ?: return
-        val streamResult = getStreamUrlUseCase(song.videoId)
-        streamResult.onSuccess { (url, bitrate) ->
-            val updatedSong = song.copy(streamUrl = url, bitrate = bitrate)
-            playStream(updatedSong)
-            musicRepository.recordPlay(updatedSong)
-        }.onFailure {
-            updateState { copy(isBuffering = false) }
+        
+        // Cancel any pending play request to avoid race conditions
+        playJob?.cancel()
+        
+        playJob = scope.launch {
+            updateState { copy(isBuffering = true, currentSong = song) }
+            
+            val streamResult = getStreamUrlUseCase(song.videoId)
+            streamResult.onSuccess { (url, bitrate) ->
+                // Final check to ensure we are still supposed to play this song
+                if (queueManager.currentSong?.videoId == song.videoId) {
+                    val updatedSong = song.copy(streamUrl = url, bitrate = bitrate)
+                    playStream(updatedSong)
+                    musicRepository.recordPlay(updatedSong)
+                    
+                    if (queueManager.currentIndex.value >= queueManager.queue.value.size - 2) {
+                        loadRelatedSongs(song.videoId)
+                    }
+                }
+            }.onFailure { error ->
+                if (queueManager.currentSong?.videoId == song.videoId) {
+                    updateState { copy(isBuffering = false) }
+                    android.util.Log.e("SMusic", "Failed to play $song: ${error.message}")
+                    delay(1000)
+                    next()
+                }
+            }
         }
     }
 
@@ -120,9 +168,11 @@ class SMusicServiceConnection @Inject constructor(
             .setTitle(song.title)
             .setArtist(song.artist)
             .setAlbumTitle(song.album)
+            .setArtworkUri(android.net.Uri.parse(song.thumbnailUrl))
             .build()
 
         val mediaItem = MediaItem.Builder()
+            .setMediaId(song.videoId) // Use videoId as Media ID for SOT
             .setUri(song.streamUrl)
             .setMediaMetadata(metadata)
             .build()
@@ -197,8 +247,18 @@ class SMusicServiceConnection @Inject constructor(
         updateState { copy(queue = queueManager.queue.value) }
     }
 
+    fun addToQueue(songs: List<Song>) {
+        queueManager.addToQueue(songs)
+        updateState { copy(queue = queueManager.queue.value) }
+    }
+
     fun addNext(song: Song) {
         queueManager.addNext(song)
+        updateState { copy(queue = queueManager.queue.value) }
+    }
+
+    fun addNext(songs: List<Song>) {
+        queueManager.addNext(songs)
         updateState { copy(queue = queueManager.queue.value) }
     }
 
@@ -254,8 +314,6 @@ class SMusicServiceConnection @Inject constructor(
                                 durationMs = ctrl.duration.coerceAtLeast(0),
                             )
                         }
-                        // Init EQ with new session
-                        equalizerManager.init(ctrl.audioSessionId)
                     }
                     Player.STATE_ENDED -> {
                         scope.launch {
@@ -306,6 +364,10 @@ class SMusicServiceConnection @Inject constructor(
                 delay(200)
             }
         }
+    }
+
+    fun getCurrentMediaItem(): MediaItem? {
+        return controller?.currentMediaItem
     }
 
     private inline fun updateState(transform: PlayerState.() -> PlayerState) {

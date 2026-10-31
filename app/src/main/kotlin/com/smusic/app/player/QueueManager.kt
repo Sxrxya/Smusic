@@ -1,5 +1,6 @@
 package com.smusic.app.player
 
+import com.smusic.app.domain.model.LanguageContext
 import com.smusic.app.domain.model.RepeatMode
 import com.smusic.app.domain.model.Song
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,9 @@ class QueueManager @Inject constructor() {
     private val _repeatMode = MutableStateFlow(RepeatMode.OFF)
     val repeatMode: StateFlow<RepeatMode> = _repeatMode.asStateFlow()
 
+    private val _languageContext = MutableStateFlow(LanguageContext.UNKNOWN)
+    val languageContext: StateFlow<LanguageContext> = _languageContext.asStateFlow()
+
     private var originalQueue: List<Song> = emptyList()
     private val historyStack = mutableListOf<Int>()
 
@@ -33,7 +37,8 @@ class QueueManager @Inject constructor() {
             return if (idx in q.indices) q[idx] else null
         }
 
-    fun setQueue(songs: List<Song>, startIndex: Int = 0) {
+    fun setQueue(songs: List<Song>, startIndex: Int = 0, context: LanguageContext = LanguageContext.UNKNOWN) {
+        _languageContext.value = context
         originalQueue = songs.toList()
         if (_shuffleEnabled.value) {
             val shuffled = songs.toMutableList()
@@ -61,10 +66,29 @@ class QueueManager @Inject constructor() {
         }
     }
 
+    fun addToQueue(songs: List<Song>) {
+        val current = _queue.value.toMutableList()
+        current.addAll(songs)
+        _queue.value = current
+        if (!_shuffleEnabled.value) {
+            originalQueue = current.toList()
+        }
+    }
+
     fun addNext(song: Song) {
         val current = _queue.value.toMutableList()
         val insertIdx = (_currentIndex.value + 1).coerceAtMost(current.size)
         current.add(insertIdx, song)
+        _queue.value = current
+        if (!_shuffleEnabled.value) {
+            originalQueue = current.toList()
+        }
+    }
+
+    fun addNext(songs: List<Song>) {
+        val current = _queue.value.toMutableList()
+        val insertIdx = (_currentIndex.value + 1).coerceAtMost(current.size)
+        current.addAll(insertIdx, songs)
         _queue.value = current
         if (!_shuffleEnabled.value) {
             originalQueue = current.toList()
