@@ -1,5 +1,6 @@
 package com.smusic.app.data.api
 
+import android.util.Log
 import io.ktor.client.call.body
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -17,7 +18,7 @@ class InnerTubeApi @Inject constructor() {
     private val webRemixContext = InnerTubeContext(
         client = InnerTubeClient(
             clientName = "WEB_REMIX",
-            clientVersion = "1.20230501.01.00",
+            clientVersion = "1.20231204.01.00",
             hl = "en",
             gl = "IN",
         )
@@ -26,27 +27,54 @@ class InnerTubeApi @Inject constructor() {
     private val androidMusicContext = InnerTubeContext(
         client = InnerTubeClient(
             clientName = "ANDROID_MUSIC",
-            clientVersion = "5.44.54",
+            clientVersion = "6.42.52",
             hl = "en",
             gl = "IN",
-            androidSdkVersion = 31,
+            androidSdkVersion = 33,
         )
     )
 
     private val androidMobileContext = InnerTubeContext(
         client = InnerTubeClient(
             clientName = "ANDROID",
-            clientVersion = "19.05.36",
+            clientVersion = "19.17.36",
             hl = "en",
             gl = "IN",
-            androidSdkVersion = 31,
+            androidSdkVersion = 33,
+        )
+    )
+
+    private val iosContext = InnerTubeContext(
+        client = InnerTubeClient(
+            clientName = "IOS",
+            clientVersion = "19.29.1",
+            hl = "en",
+            gl = "IN",
+        )
+    )
+
+    private val iosMusicContext = InnerTubeContext(
+        client = InnerTubeClient(
+            clientName = "IOS_MUSIC",
+            clientVersion = "6.42.52",
+            hl = "en",
+            gl = "IN",
+        )
+    )
+
+    private val tvHtml5Context = InnerTubeContext(
+        client = InnerTubeClient(
+            clientName = "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
+            clientVersion = "2.0",
+            hl = "en",
+            gl = "IN",
         )
     )
 
     suspend fun search(query: String): SearchResponse {
         return client.post("$baseUrl/search?key=$apiKey") {
             header("X-YouTube-Client-Name", "67")
-            header("X-YouTube-Client-Version", "1.20230501.01.00")
+            header("X-YouTube-Client-Version", "1.20231204.01.00")
             header("Origin", "https://music.youtube.com")
             header("Referer", "https://music.youtube.com/")
             setBody(
@@ -57,24 +85,6 @@ class InnerTubeApi @Inject constructor() {
             )
         }.body()
     }
-
-    private val iosContext = InnerTubeContext(
-        client = InnerTubeClient(
-            clientName = "IOS",
-            clientVersion = "19.05.36",
-            hl = "en",
-            gl = "IN",
-        )
-    )
-
-    private val tvHtml5Context = InnerTubeContext(
-        client = InnerTubeClient(
-            clientName = "TVHTML5_EMBEDDED",
-            clientVersion = "2.20230607.00.00",
-            hl = "en",
-            gl = "IN",
-        )
-    )
 
     suspend fun getPlayer(
         videoId: String,
@@ -87,34 +97,54 @@ class InnerTubeApi @Inject constructor() {
             "ANDROID_MUSIC" -> androidMusicContext
             "WEB_REMIX" -> webRemixContext
             "IOS" -> iosContext
-            "TVHTML5_EMBEDDED" -> tvHtml5Context
+            "IOS_MUSIC" -> iosMusicContext
+            "TVHTML5_SIMPLY_EMBEDDED_PLAYER", "TVHTML5_EMBEDDED" -> tvHtml5Context
             "ANDROID" -> androidMobileContext
             else -> androidMusicContext
         }
 
-        return client.post("$baseUrl/player?key=$apiKey") {
-            header("Content-Type", "application/json")
-            if (clientType == "ANDROID_MUSIC" || clientType == "ANDROID") {
-                header("User-Agent", "com.google.android.apps.youtube.music/5.44.54 (Linux; U; Android 12; en_IN; Pixel 6 Build/SD1A.210817.036)")
-            }
-            setBody(
-                PlayerRequest(
-                    context = context,
-                    videoId = videoId,
-                    playbackContext = PlaybackContext(
-                        contentPlaybackContext = ContentPlaybackContext(
-                            signatureTimestamp = 20188,
-                        )
-                    ),
+        val userAgent = when (clientType) {
+            "ANDROID_MUSIC" -> "com.google.android.apps.youtube.music/6.42.52 (Linux; U; Android 13; en_IN; Pixel 7 Build/TQ3A.230901.001)"
+            "ANDROID" -> "com.google.android.youtube/19.17.36 (Linux; U; Android 13; en_IN; Pixel 7 Build/TQ3A.230901.001)"
+            "IOS", "IOS_MUSIC" -> "com.google.ios.youtubemusic/6.42.52 (iPhone16,1; U; CPU iOS 17_5_1 like Mac OS X)"
+            else -> "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+        }
+
+        Log.d("SMusicPlay", "getPlayer videoId=$videoId clientType=$clientType")
+
+        return try {
+            client.post("$baseUrl/player?key=$apiKey") {
+                header("Content-Type", "application/json")
+                header("User-Agent", userAgent)
+                if (clientType == "WEB_REMIX") {
+                    header("Origin", "https://music.youtube.com")
+                    header("Referer", "https://music.youtube.com/")
+                }
+                setBody(
+                    PlayerRequest(
+                        context = context,
+                        videoId = videoId,
+                        // Don't send playbackContext — stale signatureTimestamp causes
+                        // YouTube to return signatureCipher instead of direct URLs
+                        playbackContext = null,
+                    )
+                )
+            }.body()
+        } catch (e: Exception) {
+            Log.e("SMusicPlay", "getPlayer failed for $videoId ($clientType): ${e.message}")
+            PlayerResponse(
+                playabilityStatus = PlayabilityStatus(
+                    status = "ERROR",
+                    reason = e.message ?: "Network error"
                 )
             )
-        }.body()
+        }
     }
 
     suspend fun browse(browseId: String): BrowseResponse {
         return client.post("$baseUrl/browse?key=$apiKey") {
             header("X-YouTube-Client-Name", "67")
-            header("X-YouTube-Client-Version", "1.20230501.01.00")
+            header("X-YouTube-Client-Version", "1.20231204.01.00")
             header("Origin", "https://music.youtube.com")
             header("Referer", "https://music.youtube.com/")
             setBody(

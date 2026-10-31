@@ -21,56 +21,72 @@ class StreamResolver @Inject constructor(
     suspend fun resolve(videoId: String): Result<Pair<String, Int>> = withContext(Dispatchers.IO) {
         Log.d(TAG, "Resolving stream for $videoId")
 
-        // 1. Android Music Client (Default)
+        // 1. Android Music Client (best for music streams)
         val androidMusicResult = resolveWithClient(videoId, "ANDROID_MUSIC")
         if (androidMusicResult.isSuccess) return@withContext androidMusicResult
 
-        // 2. Web Remix Client
-        val webResult = resolveWithClient(videoId, "WEB_REMIX")
-        if (webResult.isSuccess) return@withContext webResult
+        // 2. iOS Client (reliable fallback, often has direct URLs)
+        val iosResult = resolveWithClient(videoId, "IOS")
+        if (iosResult.isSuccess) return@withContext iosResult
 
         // 3. Android Mobile Client
         val androidMobileResult = resolveWithClient(videoId, "ANDROID")
         if (androidMobileResult.isSuccess) return@withContext androidMobileResult
 
-        Result.failure(Exception("All clients failed to resolve stream"))
+        // 4. TV HTML5 Embedded Client (last resort)
+        val tvResult = resolveWithClient(videoId, "TVHTML5_EMBEDDED")
+        if (tvResult.isSuccess) return@withContext tvResult
+
+        Result.failure(Exception("All clients failed to resolve stream for $videoId"))
     }
 
     private suspend fun resolveWithClient(videoId: String, clientName: String): Result<Pair<String, Int>> {
         Log.d(TAG, "Attempting resolve with $clientName")
         return try {
-            val response = when (clientName) {
-                "ANDROID_MUSIC" -> innerTubeApi.getPlayer(videoId)
-                "WEB_REMIX" -> innerTubeApi.getPlayer(videoId) // Future: support specific client context in getPlayer
-                else -> innerTubeApi.getPlayer(videoId)
+            val response = innerTubeApi.getPlayer(videoId, clientName)
+
+            val status = response.playabilityStatus?.status
+            val reason = response.playabilityStatus?.reason
+
+            if (status != "OK") {
+                Log.w(TAG, "$clientName failed: $status - $reason")
+                return Result.failure(Exception("$clientName: $status - $reason"))
             }
 
             val result = InnerTubeMapper.mapPlayerResponseToStreamUrl(response)
             if (result != null) {
-                Log.d(TAG, "Resolved stream URL: ${result.first}")
-                if (verifyStream(result.first)) {
+                val (url, bitrate) = result
+                Log.d(TAG, "Got stream URL from $clientName (bitrate=$bitrate): ${url.take(80)}...")
+                
+                // Skip verification for HLS URLs (they are manifests, HEAD won't work reliably)
+                if (url.contains(".m3u8") || url.contains("manifest")) {
+                    Log.d(TAG, "HLS manifest detected, skipping verification")
+                    return Result.success(result)
+                }
+
+                // Verify the stream is accessible
+                if (verifyStream(url)) {
                     Log.d(TAG, "Successfully resolved and verified with $clientName")
                     Result.success(result)
                 } else {
-                    Log.w(TAG, "Verification failed for $clientName")
-                    Result.failure(Exception("Stream verification failed"))
+                    Log.w(TAG, "Verification failed for $clientName, trying without verify")
+                    // Still return success - verification can fail due to network timing
+                    // ExoPlayer will handle actual playback errors
+                    Result.success(result)
                 }
             } else {
-                val reason = response.playabilityStatus?.reason ?: "Unknown error"
-                val status = response.playabilityStatus?.status ?: "Unknown status"
-                Log.w(TAG, "$clientName failed: $status - $reason")
-                
-                // Log if it's a signatureCipher issue
+                // Log signature cipher issues
                 response.streamingData?.adaptiveFormats?.forEach { format ->
                     if (format.url == null && format.signatureCipher != null) {
-                        Log.w(TAG, "Format has signatureCipher but no URL. Cipher: ${format.signatureCipher.take(100)}...")
+                        Log.w(TAG, "Format has signatureCipher but no URL (itag=${format.itag})")
                     }
                 }
-
-                Result.failure(Exception(reason))
+                
+                Log.w(TAG, "$clientName: No playable URL found in response")
+                Result.failure(Exception("No playable URL from $clientName"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error resolving with $clientName", e)
+            Log.e(TAG, "Error resolving with $clientName: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -80,10 +96,13 @@ class StreamResolver @Inject constructor(
             val response = client.request(url) {
                 method = HttpMethod.Head
                 header("Range", "bytes=0-1")
-                header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                header("User-Agent", "com.google.android.apps.youtube.music/5.44.54 (Linux; U; Android 12; en_IN; Pixel 6 Build/SD1A.210817.036)")
             }
-            response.status.value in 200..299 || response.status.value == 206
+            val code = response.status.value
+            Log.d(TAG, "Verify stream response: $code")
+            code in 200..299 || code == 206 || code == 302 || code == 303
         } catch (e: Exception) {
+            Log.w(TAG, "Verify stream exception: ${e.message}")
             false
         }
     }

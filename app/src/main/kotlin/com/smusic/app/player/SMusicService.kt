@@ -3,16 +3,21 @@ package com.smusic.app.player
 import android.content.Intent
 import android.net.wifi.WifiManager
 import android.os.PowerManager
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import dagger.hilt.android.AndroidEntryPoint
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -34,7 +39,26 @@ class SMusicService : MediaSessionService() {
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
 
+        // Build OkHttp client with proper timeouts and YouTube-compatible headers
+        val okHttpClient = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .build()
+
+        // Use OkHttp DataSource with proper User-Agent for YouTube streams
+        val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+            .setUserAgent(
+                "com.google.android.apps.youtube.music/6.42.52 " +
+                "(Linux; U; Android 13; en_IN; Pixel 7 Build/TQ3A.230901.001)"
+            )
+
+        val mediaSourceFactory = DefaultMediaSourceFactory(this)
+            .setDataSourceFactory(dataSourceFactory)
+
         player = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
@@ -55,6 +79,8 @@ class SMusicService : MediaSessionService() {
 
         acquireWakeLock()
         acquireWifiLock()
+
+        Log.d("SMusicService", "Service created with OkHttp DataSource")
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
