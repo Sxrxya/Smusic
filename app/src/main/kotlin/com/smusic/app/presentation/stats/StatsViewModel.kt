@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -33,13 +34,19 @@ class StatsViewModel @Inject constructor(
 
     private fun loadStats() {
         viewModelScope.launch {
-            songStatsUseCase.getTotalListeningTime().collect { time ->
+            songStatsUseCase.getTotalListeningTime().collectLatest { time ->
                 _uiState.value = _uiState.value.copy(totalListenTimeMs = time ?: 0)
             }
         }
         viewModelScope.launch {
-            songStatsUseCase.getTopSongsThisMonth().collect { songs ->
-                _uiState.value = _uiState.value.copy(topSongs = songs)
+            songStatsUseCase.getTopSongsThisMonth().collectLatest { songs ->
+                if (songs.isNotEmpty()) {
+                    _uiState.value = _uiState.value.copy(topSongs = songs)
+                } else {
+                    songStatsUseCase.getMostPlayed(10).collectLatest { allTime ->
+                        _uiState.value = _uiState.value.copy(topSongs = allTime)
+                    }
+                }
             }
         }
         viewModelScope.launch {

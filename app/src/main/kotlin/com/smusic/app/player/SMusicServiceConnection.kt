@@ -143,7 +143,13 @@ class SMusicServiceConnection @Inject constructor(
                 consecutiveFailures = 0
                 // Final check to ensure we are still supposed to play this song
                 if (queueManager.currentSong?.videoId == song.videoId) {
-                    val updatedSong = song.copy(streamUrl = url, bitrate = bitrate)
+                    val validDuration = if (song.durationSeconds > 0) {
+                        song.durationSeconds
+                    } else {
+                        val exoDuration = (controller?.duration ?: 0L) / 1000L
+                        if (exoDuration > 0) exoDuration.toInt() else 180
+                    }
+                    val updatedSong = song.copy(streamUrl = url, bitrate = bitrate, durationSeconds = validDuration)
                     playStream(updatedSong)
                     musicRepository.recordPlay(updatedSong)
                     

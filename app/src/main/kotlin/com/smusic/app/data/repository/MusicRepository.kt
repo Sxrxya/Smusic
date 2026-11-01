@@ -136,9 +136,16 @@ class MusicRepository @Inject constructor(
                 // Fallback search
                 val searchResults = lyricsApi.searchLyrics("$artist $title")
                 val bestMatch = searchResults.firstOrNull()
-                val fallbackLyrics = InnerTubeMapper.mapLrcToLyricLines(
+                var fallbackLyrics = InnerTubeMapper.mapLrcToLyricLines(
                     bestMatch?.syncedLyrics ?: bestMatch?.plainLyrics
                 )
+                if (fallbackLyrics.isEmpty()) {
+                    // Fallback to JioSaavn Official Lyrics
+                    val jioSaavnLyrics = lyricsApi.getJioSaavnLyrics("$title $artist")
+                    if (!jioSaavnLyrics.isNullOrBlank()) {
+                        fallbackLyrics = InnerTubeMapper.mapLrcToLyricLines(jioSaavnLyrics)
+                    }
+                }
                 Result.success(fallbackLyrics)
             }
         } catch (e: Exception) {

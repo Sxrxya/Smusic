@@ -469,34 +469,25 @@ object InnerTubeMapper {
     fun mapLrcToLyricLines(lrcContent: String?): List<LyricLine> {
 
         if (lrcContent.isNullOrBlank()) return emptyList()
-
         val lines = mutableListOf<LyricLine>()
-
         val regex = Regex("""\[(\d{2}):(\d{2})\.(\d{2,3})](.*)""")
-
-
-
         for (line in lrcContent.lines()) {
-
             val match = regex.find(line) ?: continue
-
             val (minutes, seconds, hundredths, text) = match.destructured
-
-            val timeMs = minutes.toLong() * 60_000 +
-
-                    seconds.toLong() * 1000 +
-
-                    hundredths.padEnd(3, '0').toLong()
-
+            val timeMs = minutes.toLong() * 60_000 + seconds.toLong() * 1000 + hundredths.padEnd(3, '0').toLong()
             lines.add(LyricLine(timeMs = timeMs, text = text.trim()))
-
         }
-
+        if (lines.isEmpty()) {
+            val plainLines = lrcContent.lines()
+                .map { it.replace(Regex("<[^>]*>"), "").trim() }
+                .filter { it.isNotBlank() }
+            if (plainLines.isNotEmpty()) {
+                val stepMs = 3500L
+                return plainLines.mapIndexed { idx, txt -> LyricLine(timeMs = idx * stepMs, text = txt) }
+            }
+        }
         return lines.sortedBy { it.timeMs }
-
     }
-
-
 
     private fun parseDuration(duration: String): Int {
 
@@ -535,4 +526,3 @@ object InnerTubeMapper {
     }
 
 }
-

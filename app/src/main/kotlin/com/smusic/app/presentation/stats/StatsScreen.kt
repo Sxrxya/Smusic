@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -31,9 +33,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.smusic.app.presentation.theme.*
 
@@ -44,21 +49,32 @@ fun StatsScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val hours = state.totalListenTimeMs / (1000.0 * 60 * 60)
+    val listenTimeDisplay = when {
+        state.totalListenTimeMs <= 0 -> "0.0 hrs"
+        hours < 0.1 -> {
+            val mins = (state.totalListenTimeMs / (1000 * 60)).coerceAtLeast(1)
+            "$mins min${if (mins > 1) "s" else ""}"
+        }
+        else -> "%.1f hrs".format(hours)
+    }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .background(BgPrimary)
             .statusBarsPadding(),
     ) {
         item {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.Filled.ArrowBack, "Back", tint = TextPrimary)
                 }
-                Text("Your Stats", style = MaterialTheme.typography.headlineMedium, color = TextPrimary)
+                Text("Your Stats", style = MaterialTheme.typography.headlineMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -72,14 +88,14 @@ fun StatsScreen(
                 StatCard(
                     icon = Icons.Filled.Timer,
                     title = "Listen Time",
-                    value = "%.1f hrs".format(hours),
+                    value = listenTimeDisplay,
                     color = AccentTeal,
                     modifier = Modifier.weight(1f),
                 )
                 StatCard(
                     icon = Icons.Filled.LocalFireDepartment,
                     title = "Streak",
-                    value = "${state.listeningStreak} days",
+                    value = "${state.listeningStreak.coerceAtLeast(1)} days",
                     color = AccentGold,
                     modifier = Modifier.weight(1f),
                 )
@@ -117,6 +133,7 @@ fun StatsScreen(
                 "Top Songs This Month",
                 style = MaterialTheme.typography.headlineSmall,
                 color = TextPrimary,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
         }
@@ -135,9 +152,9 @@ fun StatsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     Text(
                         "${index + 1}",
@@ -146,10 +163,27 @@ fun StatsScreen(
                         fontWeight = FontWeight.Bold,
                     )
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(stats.title, color = TextPrimary, style = MaterialTheme.typography.titleSmall)
-                        Text(stats.artist, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            stats.title,
+                            color = TextPrimary,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            stats.artist,
+                            color = TextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
-                    Text("${stats.playCount} plays", color = TextMuted, style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        "${stats.playCount} plays",
+                        color = TextMuted,
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
             }
         }
@@ -163,23 +197,35 @@ fun StatCard(
     icon: ImageVector,
     title: String,
     value: String,
-    color: androidx.compose.ui.graphics.Color,
+    color: Color,
     modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.heightIn(min = 105.dp),
         colors = CardDefaults.cardColors(containerColor = CardBackground),
         shape = RoundedCornerShape(16.dp),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Icon(icon, null, tint = color, modifier = Modifier.padding(bottom = 8.dp))
-            Text(title, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, null, tint = color, modifier = Modifier.size(22.dp).padding(bottom = 4.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                title,
+                color = TextSecondary,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 value,
                 color = TextPrimary,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp),
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

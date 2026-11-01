@@ -55,6 +55,13 @@ fun AppNavigation(
         Screen.Settings.route,
     )
 
+    val navigateToPlayer: () -> Unit = {
+        navController.navigate(Screen.Player.route) {
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     Scaffold(
         containerColor = BackgroundPrimary,
         bottomBar = {
@@ -74,7 +81,7 @@ fun AppNavigation(
                                 playerState = playerState,
                                 onPlayPause = { serviceConnection.playPause() },
                                 onNext = { serviceConnection.next() },
-                                onClick = { navController.navigate(Screen.Player.route) },
+                                onClick = navigateToPlayer,
                             )
                         }
                     } else null,
@@ -95,7 +102,7 @@ fun AppNavigation(
                     HomeScreen(
                         onNavigateToSearch = { navController.navigate(Screen.Search.route) },
                         onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                        onNavigateToPlayer = { navController.navigate(Screen.Player.route) },
+                        onNavigateToPlayer = navigateToPlayer,
                         onNavigateToArtist = { navController.navigate("artist/$it") },
                         onNavigateToAlbum = { navController.navigate("album/$it") },
                         onNavigateToCategory = { navController.navigate("category/$it") },
@@ -104,7 +111,7 @@ fun AppNavigation(
 
                 composable(Screen.Search.route) {
                     SearchScreen(
-                        onNavigateToPlayer = { navController.navigate(Screen.Player.route) },
+                        onNavigateToPlayer = navigateToPlayer,
                         onNavigateToArtist = { navController.navigate("artist/$it") },
                         onNavigateToAlbum = { navController.navigate("album/$it") },
                         onNavigateToCategory = { navController.navigate("category/$it") },
@@ -114,7 +121,7 @@ fun AppNavigation(
 
                 composable(Screen.Library.route) {
                     LibraryScreen(
-                        onNavigateToPlayer = { navController.navigate(Screen.Player.route) },
+                        onNavigateToPlayer = navigateToPlayer,
                         onNavigateToPlaylist = { navController.navigate("playlist/$it") },
                         onNavigateToDownloads = { navController.navigate(Screen.Downloads.route) },
                         onNavigateToStats = { navController.navigate(Screen.Stats.route) },
@@ -134,6 +141,7 @@ fun AppNavigation(
                         onBack = { navController.popBackStack() },
                         onNavigateToArtist = { navController.navigate("artist/$it") },
                         onNavigateToAlbum = { navController.navigate("album/$it") },
+                        onNavigateToEqualizer = { navController.navigate(Screen.Equalizer.route) },
                     )
                 }
 
@@ -148,7 +156,7 @@ fun AppNavigation(
                 composable(Screen.Downloads.route) {
                     DownloadsScreen(
                         onBack = { navController.popBackStack() },
-                        onNavigateToPlayer = { navController.navigate(Screen.Player.route) },
+                        onNavigateToPlayer = navigateToPlayer,
                     )
                 }
 
@@ -164,7 +172,7 @@ fun AppNavigation(
                     PlaylistScreen(
                         playlistId = playlistId,
                         onBack = { navController.popBackStack() },
-                        onNavigateToPlayer = { navController.navigate(Screen.Player.route) },
+                        onNavigateToPlayer = navigateToPlayer,
                     )
                 }
 
@@ -176,7 +184,7 @@ fun AppNavigation(
                     ArtistScreen(
                         artistId = artistId,
                         onBack = { navController.popBackStack() },
-                        onNavigateToPlayer = { navController.navigate(Screen.Player.route) },
+                        onNavigateToPlayer = navigateToPlayer,
                         onNavigateToAlbum = { navController.navigate("album/$it") },
                     )
                 }
@@ -189,7 +197,7 @@ fun AppNavigation(
                     AlbumScreen(
                         albumId = albumId,
                         onBack = { navController.popBackStack() },
-                        onNavigateToPlayer = { navController.navigate(Screen.Player.route) },
+                        onNavigateToPlayer = navigateToPlayer,
                         onNavigateToArtist = { navController.navigate("artist/$it") },
                     )
                 }
@@ -201,7 +209,7 @@ fun AppNavigation(
                     val category = backStackEntry.arguments?.getString("category") ?: ""
                     SearchScreen(
                         initialCategory = category,
-                        onNavigateToPlayer = { navController.navigate(Screen.Player.route) },
+                        onNavigateToPlayer = navigateToPlayer,
                         onNavigateToArtist = { navController.navigate("artist/$it") },
                         onNavigateToAlbum = { navController.navigate("album/$it") },
                         onNavigateToCategory = { navController.navigate("category/$it") },

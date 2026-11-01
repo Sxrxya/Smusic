@@ -2,17 +2,22 @@ package com.smusic.app.presentation.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.smusic.app.data.repository.DownloadRepository
+import com.smusic.app.data.repository.LibraryRepository
 import com.smusic.app.data.repository.MusicRepository
 import com.smusic.app.domain.engine.LanguageResolver
 import com.smusic.app.domain.engine.RecommendationEngine
+import com.smusic.app.domain.model.DownloadState
 import com.smusic.app.domain.model.LanguageContext
 import com.smusic.app.domain.model.LyricLine
 import com.smusic.app.domain.model.PlayerState
+import com.smusic.app.domain.model.Playlist
 import com.smusic.app.domain.model.Song
 import com.smusic.app.domain.usecase.GetLyricsUseCase
 import com.smusic.app.domain.usecase.LikeSongUseCase
 import com.smusic.app.player.SMusicServiceConnection
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,11 +29,16 @@ data class PlayerUiState(
     val lyrics: List<LyricLine> = emptyList(),
     val isLoadingLyrics: Boolean = false,
     val isLiked: Boolean = false,
+    val isDownloaded: Boolean = false,
+    val isDownloading: Boolean = false,
     val showLyrics: Boolean = false,
     val showQueue: Boolean = false,
+    val showAddToPlaylist: Boolean = false,
+    val playlists: List<Playlist> = emptyList(),
     val showSleepTimer: Boolean = false,
     val sleepTimerActive: Boolean = false,
     val sleepTimerRemaining: Int = 0,
+    val toastMessage: String? = null,
 )
 
 @HiltViewModel
@@ -39,6 +49,8 @@ class PlayerViewModel @Inject constructor(
     private val recommendationEngine: RecommendationEngine,
     private val musicRepository: MusicRepository,
     private val languageResolver: LanguageResolver,
+    private val downloadRepository: DownloadRepository,
+    private val libraryRepository: LibraryRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlayerUiState())
@@ -47,9 +59,19 @@ class PlayerViewModel @Inject constructor(
     val playerState: StateFlow<PlayerState> = serviceConnection.playerState
 
     private var currentLyricsSongId: String? = null
+    private var downloadCheckJob: Job? = null
 
     init {
         observePlayerState()
+        observePlaylists()
+    }
+
+    private fun observePlaylists() {
+        viewModelScope.launch {
+            libraryRepository.getAllPlaylists().collectLatest { list ->
+                _uiState.value = _uiState.value.copy(playlists = list)
+            }
+        }
     }
 
     private fun observePlayerState() {
@@ -59,14 +81,30 @@ class PlayerViewModel @Inject constructor(
                     // 1. Load lyrics for the new song
                     loadLyrics(song)
 
-                    // 2. Handle recommendations if queue is running low
+                    // 2. Check if song is downloaded
+                    observeDownloadStatus(song.videoId)
+
+                    // 3. Handle recommendations if queue is running low
                     if (state.queue.size - state.currentIndex <= 3) {
                         fetchAndRefillQueue(song, state.queue)
                     }
                     
-                    // 3. Verify song metadata/integrity if needed
                     verifySongIntegrity(song)
                 }
+            }
+        }
+    }
+
+    private fun observeDownloadStatus(videoId: String) {
+        downloadCheckJob?.cancel()
+        downloadCheckJob = viewModelScope.launch {
+            downloadRepository.getDownloadByIdFlow(videoId).collectLatest { entity ->
+                val isDownloaded = entity?.state == DownloadState.DOWNLOADED.name
+                val isDownloading = entity?.state == DownloadState.DOWNLOADING.name || entity?.state == DownloadState.QUEUED.name
+                _uiState.value = _uiState.value.copy(
+                    isDownloaded = isDownloaded,
+                    isDownloading = isDownloading
+                )
             }
         }
     }
@@ -92,9 +130,8 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun verifySongIntegrity(song: Song) {
-        // Strict ID validation
         if (song.videoId.length != 11) {
-            // Log error or handle invalid track
+            // Validation placeholder
         }
     }
 
@@ -117,6 +154,45 @@ class PlayerViewModel @Inject constructor(
             val liked = likeSongUseCase(song)
             _uiState.value = _uiState.value.copy(isLiked = liked)
         }
+    }
+
+    fun downloadSong(song: Song) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isDownloading = true,
+                toastMessage = "Downloading ${song.title} in 320 kbps..."
+            )
+            downloadRepository.queueDownload(song)
+        }
+    }
+
+    fun toggleAddToPlaylistSheet() {
+        _uiState.value = _uiState.value.copy(showAddToPlaylist = !_uiState.value.showAddToPlaylist)
+    }
+
+    fun addSongToPlaylist(playlistId: Long, song: Song) {
+        viewModelScope.launch {
+            libraryRepository.addSongToPlaylist(playlistId, song)
+            _uiState.value = _uiState.value.copy(
+                showAddToPlaylist = false,
+                toastMessage = "Added to playlist!"
+            )
+        }
+    }
+
+    fun createPlaylistAndAddSong(name: String, song: Song) {
+        viewModelScope.launch {
+            val playlistId = libraryRepository.createPlaylist(name)
+            libraryRepository.addSongToPlaylist(playlistId, song)
+            _uiState.value = _uiState.value.copy(
+                showAddToPlaylist = false,
+                toastMessage = "Created and added to playlist!"
+            )
+        }
+    }
+
+    fun clearToast() {
+        _uiState.value = _uiState.value.copy(toastMessage = null)
     }
 
     fun toggleLyricsSheet() {
