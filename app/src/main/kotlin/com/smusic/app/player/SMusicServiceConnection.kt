@@ -10,6 +10,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
+import com.smusic.app.data.db.dao.DownloadDao
 import com.smusic.app.data.repository.MusicRepository
 import com.smusic.app.data.repository.SettingsRepository
 import com.smusic.app.domain.model.PlayerState
@@ -41,6 +42,7 @@ class SMusicServiceConnection @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val crossfadeHandler: CrossfadeHandler,
     private val equalizerManager: EqualizerManager,
+    private val downloadDao: DownloadDao,
 ) {
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
@@ -137,6 +139,26 @@ class SMusicServiceConnection @Inject constructor(
         
         playJob = scope.launch {
             updateState { copy(isBuffering = true, currentSong = song) }
+
+            // 0. Offline Check: Play local downloaded file immediately if available
+            try {
+                if (song.streamUrl.isNotBlank() && java.io.File(song.streamUrl).exists()) {
+                    playStream(song)
+                    return@launch
+                }
+                val localDownload = downloadDao.getDownloadById(song.videoId)
+                if (localDownload != null && localDownload.state == "DOWNLOADED" && localDownload.filePath.isNotBlank()) {
+                    val file = java.io.File(localDownload.filePath)
+                    if (file.exists() && file.length() > 0) {
+                        val offlineSong = song.copy(streamUrl = localDownload.filePath, bitrate = localDownload.bitrate)
+                        playStream(offlineSong)
+                        musicRepository.recordPlay(offlineSong)
+                        return@launch
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("SMusicPlay", "Local playback check fallback: ${e.message}")
+            }
             
             val streamResult = getStreamUrlUseCase(song.videoId, song.title, song.artist)
             streamResult.onSuccess { (url, bitrate) ->

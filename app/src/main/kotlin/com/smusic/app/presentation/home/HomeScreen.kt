@@ -1,6 +1,5 @@
 package com.smusic.app.presentation.home
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,6 +28,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -36,65 +40,35 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import com.smusic.app.domain.model.Song
 import com.smusic.app.presentation.components.ArtistCard
 import com.smusic.app.presentation.components.EmptyState
 import com.smusic.app.presentation.components.ErrorState
-import com.smusic.app.presentation.components.FeaturedCard
-import com.smusic.app.presentation.components.FeaturedItem
 import com.smusic.app.presentation.components.LanguageChips
 import com.smusic.app.presentation.components.ShimmerSongRow
 import com.smusic.app.presentation.components.SongCard
 import com.smusic.app.presentation.components.SongRow
 import com.smusic.app.presentation.theme.*
-import kotlinx.coroutines.delay
 
 val languages = listOf("All", "Hindi", "English", "Tamil", "Telugu", "Punjabi", "Marathi", "Bengali")
-val moodGradients = mapOf(
-    "Happy" to GoldGradient,
-    "Sad" to CyanGradient,
-    "Party" to PinkGradient,
-    "Focus" to PurpleGradient,
-    "Workout" to OrangeGradient,
-    "Sleep" to CyanGradient
-)
-val moods = listOf("Happy 😊", "Sad 😢", "Party 🎉", "Focus 🎯", "Workout 💪", "Sleep 😴")
-
-val featuredItems = listOf(
-    FeaturedItem(
-        "Party Hits",
-        "Best of 2024",
-        "🔥",
-        listOf(AccentPrimary, Color(0xFFFF006E)),
-        "Party"
-    ),
-    FeaturedItem(
-        "Chill Vibes",
-        "Smooth Jazz",
-        "🌙",
-        listOf(Color(0xFF0099FF), Color(0xFFA8E6E8)),
-        "Relax"
-    ),
-    FeaturedItem(
-        "Workout Mix",
-        "High Energy",
-        "⚡",
-        listOf(Color(0xFFFF6B35), Color(0xFFFDB833)),
-        "Workout"
-    )
-)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -108,155 +82,334 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
-    val pagerState = rememberPagerState(pageCount = { featuredItems.size })
-
-    // Auto-scroll pager
-    LaunchedEffect(pagerState) {
-        while (true) {
-            delay(4000)
-            val next = (pagerState.currentPage + 1) % featuredItems.size
-            pagerState.animateScrollToPage(next)
-        }
-    }
+    var selectedFilterPill by remember { mutableStateOf("All") }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(BgPrimary)
+            .background(Color(0xFF07090E))
             .statusBarsPadding(),
-        contentPadding = PaddingValues(bottom = 16.dp),
+        contentPadding = PaddingValues(bottom = 90.dp),
     ) {
-        // Top bar
+        // Top Apple / Spotify Hybrid Navigation Bar
         item {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = state.greeting,
-                    style = MaterialTheme.typography.displaySmall,
-                    color = Color.White,
-                    modifier = Modifier
-                        .weight(1f)
-                        .drawBehind {
-                            // Text gradient can be applied here with Brush.linearGradient
-                        },
-                )
-                Row {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "NEW & TRENDING",
+                        color = Color(0xFFFA233B),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp
+                    )
+                    Text(
+                        text = state.greeting.replace(" 🎵", ""),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = TextPrimary,
+                    )
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = onNavigateToSearch,
                         modifier = Modifier
+                            .size(42.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.05f))
+                            .background(Color.White.copy(alpha = 0.08f))
                     ) {
-                        Icon(Icons.Filled.Search, "Search", tint = Color.White)
+                        Icon(Icons.Filled.Search, "Search", tint = Color.White, modifier = Modifier.size(20.dp))
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = onNavigateToSettings,
                         modifier = Modifier
+                            .size(42.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.05f))
+                            .background(Color.White.copy(alpha = 0.08f))
                     ) {
-                        Icon(Icons.Filled.Settings, "Settings", tint = TextSecondary)
+                        Icon(Icons.Filled.Settings, "Settings", tint = TextSecondary, modifier = Modifier.size(20.dp))
                     }
                 }
             }
         }
 
-        // Language chips
-        item {
-            LanguageChips(
-                languages = languages,
-                selectedLanguage = state.selectedLanguage,
-                onLanguageSelected = viewModel::onLanguageSelected,
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        // Mood chips
+        // Spotify-style Filter Pills (All, Music, Podcasts, Trending)
         item {
             Row(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                moods.forEach { mood ->
-                    val moodKey = mood.split(" ").first()
-                    val isSelected = state.selectedMood == moodKey
-                    
+                listOf("All", "Music", "Trending", "Party", "Relax", "Workout").forEach { pill ->
+                    val isSelected = selectedFilterPill == pill
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .then(
-                                if (isSelected) Modifier.background(moodGradients[moodKey] ?: PrimaryGradient)
-                                else Modifier
-                                    .background(BgCard.copy(alpha = 0.3f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
+                            .clip(CircleShape)
+                            .background(
+                                if (isSelected) Color(0xFFFA233B)
+                                else Color.White.copy(alpha = 0.07f)
                             )
-                            .clickable { viewModel.onMoodSelected(moodKey) }
-                            .padding(horizontal = 20.dp, vertical = 10.dp)
+                            .border(
+                                1.dp,
+                                if (isSelected) Color(0xFFFA233B) else Color.White.copy(alpha = 0.1f),
+                                CircleShape
+                            )
+                            .clickable {
+                                selectedFilterPill = pill
+                                if (pill != "All" && pill != "Music") {
+                                    viewModel.onMoodSelected(pill)
+                                }
+                            }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = mood,
+                            text = pill,
                             color = if (isSelected) Color.White else TextSecondary,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            style = MaterialTheme.typography.labelMedium
                         )
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(14.dp))
         }
 
-        // Featured pager
-        item {
-            SectionHeader("FEATURED")
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalPager(
-                state = pagerState,
-                contentPadding = PaddingValues(horizontal = 24.dp),
-                pageSpacing = 16.dp,
-            ) { page ->
-                FeaturedCard(
-                    item = featuredItems[page],
-                    onClick = { onNavigateToCategory(featuredItems[page].category) },
-                )
+        // Spotify-style 6-Grid Quick Access Cards (Liked, Recently Played, Hits)
+        if (state.recentlyPlayed.isNotEmpty() || state.trendingSongs.isNotEmpty()) {
+            item {
+                val gridItems = (state.recentlyPlayed + state.trendingSongs).distinctBy { it.videoId }.take(6)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    for (row in gridItems.chunked(2)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            row.forEach { song ->
+                                Row(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(56.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color.White.copy(alpha = 0.06f))
+                                        .clickable {
+                                            viewModel.playSong(song, gridItems, "Quick Access")
+                                            onNavigateToPlayer()
+                                        },
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    AsyncImage(
+                                        model = song.thumbnailUrl,
+                                        contentDescription = song.title,
+                                        modifier = Modifier
+                                            .size(56.dp)
+                                            .clip(RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = song.title,
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                }
+                            }
+                            if (row.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
             }
+        }
 
-            // Dot indicators
+        // Apple Music Wide Featured Album / Playlist Banner Cards
+        if (state.trendingSongs.isNotEmpty()) {
+            item {
+                val featuredSongs = state.trendingSongs.take(4)
+                val bannerPagerState = rememberPagerState(pageCount = { featuredSongs.size })
+
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Featured Spotlight",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                    }
+
+                    HorizontalPager(
+                        state = bannerPagerState,
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        pageSpacing = 12.dp,
+                    ) { page ->
+                        val item = featuredSongs[page]
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(18.dp))
+                                .clickable {
+                                    viewModel.playSong(item, featuredSongs, "Featured Spotlight")
+                                    onNavigateToPlayer()
+                                }
+                        ) {
+                            AsyncImage(
+                                model = item.highResThumbnail.ifBlank { item.thumbnailUrl },
+                                contentDescription = item.title,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            // Gradient Vignette
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(
+                                                Color.Black.copy(alpha = 0.15f),
+                                                Color.Black.copy(alpha = 0.85f)
+                                            )
+                                        )
+                                    )
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(16.dp)
+                            ) {
+                                Text(
+                                    text = "FEATURED TRACK",
+                                    color = Color(0xFF00E5FF),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = 1.5.sp
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = item.title,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = item.artist,
+                                    color = TextSecondary,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            // Floating Play Icon Badge
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(16.dp)
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFFA233B)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Filled.PlayArrow, contentDescription = "Play", tint = Color.White, modifier = Modifier.size(24.dp))
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(28.dp))
+            }
+        }
+
+        // Apple Music "Best New Songs >" Section
+        item {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.Center,
+                    .clickable { onNavigateToCategory("Trending") }
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                repeat(featuredItems.size) { index ->
-                    val isSelected = index == pagerState.currentPage
-                    val width by animateFloatAsState(if (isSelected) 24f else 8f, label = "dot_width")
-                    
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .height(6.dp)
-                            .width(width.dp)
-                            .clip(CircleShape)
-                            .background(if (isSelected) AccentPrimary else TextMuted.copy(alpha = 0.5f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Best New Songs",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Icon(
+                        Icons.Filled.ChevronRight,
+                        contentDescription = "See All",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(24.dp).padding(start = 4.dp)
                     )
                 }
+                Text("See All", color = Color(0xFFFA233B), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             }
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Top Artists
+        if (state.isLoading) {
+            items(6) { ShimmerSongRow() }
+        } else if (state.error != null) {
+            item { ErrorState(message = state.error ?: "Error", onRetry = viewModel::loadHome) }
+        } else if (state.trendingSongs.isEmpty()) {
+            item { EmptyState("No trending songs found") }
+        } else {
+            items(state.trendingSongs.take(8)) { song ->
+                SongRow(
+                    song = song,
+                    onClick = {
+                        viewModel.playSong(song, state.trendingSongs, "Best New Songs")
+                        onNavigateToPlayer()
+                    },
+                    index = state.trendingSongs.indexOf(song),
+                )
+            }
+        }
+
+        // Top Artists with Glowing Ring Avatars
         if (state.topArtists.isNotEmpty()) {
             item {
-                SectionHeader("TOP ARTISTS")
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Top Artists", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = TextPrimary)
+                }
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -268,46 +421,31 @@ fun HomeScreen(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(24.dp))
             }
         }
 
-        // Trending Now
-        item { SectionHeader("TRENDING NOW") }
-
-        if (state.isLoading) {
-            items(8) { ShimmerSongRow() }
-        } else if (state.error != null) {
-            item { ErrorState(message = state.error ?: "Error", onRetry = viewModel::loadHome) }
-        } else if (state.trendingSongs.isEmpty()) {
-            item { EmptyState("No trending songs found") }
-        } else {
-            items(state.trendingSongs.take(8)) { song ->
-                SongRow(
-                    song = song,
-                    onClick = {
-                        viewModel.playSong(song, state.trendingSongs, "Trending Now")
-                        onNavigateToPlayer()
-                    },
-                    index = state.trendingSongs.indexOf(song),
-                )
-            }
-        }
-
-        // Recently Played
+        // Jump Back In (Recently Played Cards)
         if (state.recentlyPlayed.isNotEmpty()) {
             item {
-                Spacer(modifier = Modifier.height(16.dp))
-                SectionHeader("Recently Played")
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Jump Back In", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = TextPrimary)
+                }
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(state.recentlyPlayed.take(10)) { song ->
                         SongCard(
                             song = song,
                             onClick = {
-                                viewModel.playSong(song, state.recentlyPlayed, "Recently Played")
+                                viewModel.playSong(song, state.recentlyPlayed, "Jump Back In")
                                 onNavigateToPlayer()
                             },
                         )
@@ -316,67 +454,23 @@ fun HomeScreen(
             }
         }
 
-        // Mood songs
-        if (state.moodSongs.isNotEmpty()) {
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-                SectionHeader("${state.selectedMood ?: ""} Vibes")
+        // Language & Cultural Discovery
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Music by Language", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = TextPrimary)
             }
-            items(state.moodSongs.take(8)) { song ->
-                SongRow(
-                    song = song,
-                    onClick = {
-                        viewModel.playSong(song, state.moodSongs, "${state.selectedMood} Vibes")
-                        onNavigateToPlayer()
-                    },
-                )
-            }
-        }
-
-        // Based on taste
-        if (state.basedOnTaste.isNotEmpty()) {
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-                SectionHeader("Based on Your Taste")
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(state.basedOnTaste) { song ->
-                        SongCard(
-                            song = song,
-                            onClick = {
-                                viewModel.playSong(song, state.basedOnTaste, "Based on Your Taste")
-                                onNavigateToPlayer()
-                            },
-                        )
-                    }
-                }
-            }
-        }
-
-        item { Spacer(modifier = Modifier.height(80.dp)) }
-    }
-}
-
-@Composable
-fun SectionHeader(title: String, onSeeAll: (() -> Unit)? = null) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineSmall,
-            color = TextPrimary,
-        )
-        if (onSeeAll != null) {
-            TextButton(onClick = onSeeAll) {
-                Text("See all", color = AccentPrimary)
-            }
+            LanguageChips(
+                languages = languages,
+                selectedLanguage = state.selectedLanguage,
+                onLanguageSelected = viewModel::onLanguageSelected,
+            )
         }
     }
 }

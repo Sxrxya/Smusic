@@ -2,6 +2,8 @@ package com.smusic.app.presentation.downloads
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.smusic.app.data.db.entity.DownloadEntity
+import com.smusic.app.data.repository.DownloadRepository
 import com.smusic.app.domain.model.Song
 import com.smusic.app.domain.usecase.DownloadSongUseCase
 import com.smusic.app.player.SMusicServiceConnection
@@ -14,12 +16,14 @@ import javax.inject.Inject
 
 data class DownloadsUiState(
     val songs: List<Song> = emptyList(),
+    val pendingDownloads: List<DownloadEntity> = emptyList(),
     val totalSize: Long = 0,
 )
 
 @HiltViewModel
 class DownloadsViewModel @Inject constructor(
     private val downloadSongUseCase: DownloadSongUseCase,
+    private val downloadRepository: DownloadRepository,
     val serviceConnection: SMusicServiceConnection,
 ) : ViewModel() {
 
@@ -30,6 +34,11 @@ class DownloadsViewModel @Inject constructor(
         viewModelScope.launch {
             downloadSongUseCase.getDownloadedSongs().collect { songs ->
                 _uiState.value = _uiState.value.copy(songs = songs)
+            }
+        }
+        viewModelScope.launch {
+            downloadRepository.getPendingDownloads().collect { pending ->
+                _uiState.value = _uiState.value.copy(pendingDownloads = pending)
             }
         }
         viewModelScope.launch {
