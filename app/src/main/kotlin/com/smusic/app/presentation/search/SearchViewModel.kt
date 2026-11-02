@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.smusic.app.data.repository.MusicRepository
 import com.smusic.app.data.repository.SettingsRepository
 import com.smusic.app.domain.model.Song
+import com.smusic.app.presentation.components.formatNetworkError
 import com.smusic.app.domain.usecase.SearchSongsUseCase
 import com.smusic.app.player.SMusicServiceConnection
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -78,7 +79,7 @@ class SearchViewModel @Inject constructor(
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     isSearching = false,
-                    error = error.message ?: "Search failed",
+                    error = formatNetworkError(error.message),
                 )
             }
         }

@@ -128,25 +128,51 @@ class MusicRepository @Inject constructor(
 
     suspend fun getLyrics(artist: String, title: String): Result<List<LyricLine>> = withContext(Dispatchers.IO) {
         try {
-            val response = lyricsApi.getLyrics(artist, title)
-            val lyrics = InnerTubeMapper.mapLrcToLyricLines(response?.syncedLyrics ?: response?.plainLyrics)
+            val cleanTitle = title
+                .replace(Regex("""(?i)\((from|original|motion picture|soundtrack|feat|ft|audio|video|lyrics?|full song|hd|4k|official)[^)]*\)"""), "")
+                .replace(Regex("""(?i)\[[^\]]*\]"""), "")
+                .replace(Regex("""(?i)\|.*$"""), "")
+                .replace(Regex("""(?i)\b(official|video|audio|lyrics?|full song|hd|4k|lyric video)\b"""), "")
+                .trim()
+            val cleanArtist = artist.split(",", "&", "feat.", "ft.", "Featuring", "|").first().trim()
+
+            var response = lyricsApi.getLyrics(cleanArtist, cleanTitle)
+            if (response == null && cleanTitle != title) {
+                response = lyricsApi.getLyrics(cleanArtist, title)
+            }
+            var lyrics = InnerTubeMapper.mapLrcToLyricLines(response?.syncedLyrics ?: response?.plainLyrics)
             if (lyrics.isNotEmpty()) {
                 Result.success(lyrics)
             } else {
                 // Fallback search
-                val searchResults = lyricsApi.searchLyrics("$artist $title")
-                val bestMatch = searchResults.firstOrNull()
+                val searchResults = lyricsApi.searchLyrics("$cleanTitle $cleanArtist")
+                val bestMatch = searchResults.firstOrNull { !it.syncedLyrics.isNullOrBlank() } ?: searchResults.firstOrNull()
                 var fallbackLyrics = InnerTubeMapper.mapLrcToLyricLines(
                     bestMatch?.syncedLyrics ?: bestMatch?.plainLyrics
                 )
                 if (fallbackLyrics.isEmpty()) {
                     // Fallback to JioSaavn Official Lyrics
-                    val jioSaavnLyrics = lyricsApi.getJioSaavnLyrics("$title $artist")
+                    val jioSaavnLyrics = lyricsApi.getJioSaavnLyrics("$cleanTitle $cleanArtist")
                     if (!jioSaavnLyrics.isNullOrBlank()) {
                         fallbackLyrics = InnerTubeMapper.mapLrcToLyricLines(jioSaavnLyrics)
                     }
                 }
                 Result.success(fallbackLyrics)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getYouTubePlaylist(playlistId: String): Result<List<Song>> = withContext(Dispatchers.IO) {
+        try {
+            val response = innerTubeApi.getPlaylist(playlistId)
+            val songs = InnerTubeMapper.mapBrowseResponseToSongs(response)
+            if (songs.isNotEmpty()) {
+                Result.success(songs)
+            } else {
+                val searchRes = innerTubeApi.search(playlistId)
+                Result.success(InnerTubeMapper.mapSearchResponseToSongs(searchRes))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -215,9 +241,9 @@ class MusicRepository @Inject constructor(
         }
     }
 
-    suspend fun recordPlay(song: Song) {
-        withContext(Dispatchers.IO) {
-            // Save to recently played
+    suspend fun recordSongStarted(song: Song) = withContext(Dispatchers.IO) {
+        if (song.videoId.isBlank()) return@withContext
+        try {
             recentlyPlayedDao.insertRecentlyPlayed(
                 RecentlyPlayedEntity(
                     videoId = song.videoId,
@@ -228,49 +254,20 @@ class MusicRepository @Inject constructor(
                 )
             )
 
-            // Update stats
             val existingStats = songStatsDao.getStatsForSong(song.videoId)
-            if (existingStats != null) {
-                songStatsDao.incrementPlayCount(
-                    videoId = song.videoId,
-                    listenTimeMs = song.durationSeconds * 1000L,
-                    playedAt = System.currentTimeMillis(),
-                )
-            } else {
+            if (existingStats == null) {
                 songStatsDao.insertSongStats(
                     SongStatsEntity(
                         videoId = song.videoId,
                         title = song.title,
                         artist = song.artist,
                         thumbnailUrl = song.thumbnailUrl,
-                        playCount = 1,
-                        totalListenTimeMs = song.durationSeconds * 1000L,
+                        playCount = 0,
+                        totalListenTimeMs = 0L,
                         lastPlayedAt = System.currentTimeMillis(),
                     )
                 )
             }
-
-            // Unified Recommendation Data Recording
-            val lang = song.language
-            if (lang.isNotBlank() && song.artistId.isNotBlank()) {
-                val artistLang = recommendationDao.getArtistLanguage(song.artistId)
-                if (artistLang == null) {
-                    recommendationDao.insertArtistLanguage(ArtistLanguageEntity(song.artistId, lang))
-                } else {
-                    recommendationDao.incrementArtistPlayCount(song.artistId)
-                }
-            }
-
-            recommendationDao.insertPlayEvent(
-                PlayEventEntity(
-                    videoId = song.videoId,
-                    durationSeconds = song.durationSeconds,
-                    listenTimeSeconds = song.durationSeconds, // Simplified for now
-                    language = song.language,
-                    genre = song.genre,
-                    artistId = song.artistId
-                )
-            )
 
             // Cache song in DB with genre and language
             val existing = songDao.getSongById(song.videoId)
@@ -291,7 +288,6 @@ class MusicRepository @Inject constructor(
                     )
                 )
             } else {
-                // Update genre/language if they were empty but now have values
                 if (existing.genre.isBlank() && song.genre.isNotBlank() ||
                     existing.language.isBlank() && song.language.isNotBlank()
                 ) {
@@ -303,7 +299,84 @@ class MusicRepository @Inject constructor(
                     )
                 }
             }
+        } catch (e: Exception) {
+            // Ignore safely
         }
+    }
+
+    suspend fun recordListenDuration(song: Song, durationMs: Long) = withContext(Dispatchers.IO) {
+        if (song.videoId.isBlank() || durationMs <= 0) return@withContext
+        try {
+            val existing = songStatsDao.getStatsForSong(song.videoId)
+            val now = System.currentTimeMillis()
+            if (existing != null) {
+                songStatsDao.addListenDuration(song.videoId, durationMs, now)
+            } else {
+                songStatsDao.insertSongStats(
+                    SongStatsEntity(
+                        videoId = song.videoId,
+                        title = song.title,
+                        artist = song.artist,
+                        thumbnailUrl = song.thumbnailUrl,
+                        playCount = 0,
+                        totalListenTimeMs = durationMs,
+                        lastPlayedAt = now,
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            // Ignore safely
+        }
+    }
+
+    suspend fun recordPlayCount(song: Song) = withContext(Dispatchers.IO) {
+        if (song.videoId.isBlank()) return@withContext
+        try {
+            val existing = songStatsDao.getStatsForSong(song.videoId)
+            val now = System.currentTimeMillis()
+            if (existing != null) {
+                songStatsDao.incrementPlayOnly(song.videoId, now)
+            } else {
+                songStatsDao.insertSongStats(
+                    SongStatsEntity(
+                        videoId = song.videoId,
+                        title = song.title,
+                        artist = song.artist,
+                        thumbnailUrl = song.thumbnailUrl,
+                        playCount = 1,
+                        totalListenTimeMs = 15_000L,
+                        lastPlayedAt = now,
+                    )
+                )
+            }
+
+            val lang = song.language
+            if (lang.isNotBlank() && song.artistId.isNotBlank()) {
+                val artistLang = recommendationDao.getArtistLanguage(song.artistId)
+                if (artistLang == null) {
+                    recommendationDao.insertArtistLanguage(ArtistLanguageEntity(song.artistId, lang))
+                } else {
+                    recommendationDao.incrementArtistPlayCount(song.artistId)
+                }
+            }
+
+            recommendationDao.insertPlayEvent(
+                PlayEventEntity(
+                    videoId = song.videoId,
+                    durationSeconds = song.durationSeconds,
+                    listenTimeSeconds = 15,
+                    language = song.language,
+                    genre = song.genre,
+                    artistId = song.artistId
+                )
+            )
+        } catch (e: Exception) {
+            // Ignore safely
+        }
+    }
+
+    suspend fun recordPlay(song: Song) {
+        recordSongStarted(song)
     }
 
     fun getSongsByGenre(genre: String): Flow<List<Song>> {

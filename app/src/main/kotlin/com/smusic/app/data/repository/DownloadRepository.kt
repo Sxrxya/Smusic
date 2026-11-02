@@ -93,7 +93,13 @@ class DownloadRepository @Inject constructor(
         )
     }
 
+    suspend fun cancelDownload(videoId: String) = withContext(Dispatchers.IO) {
+        workManager.cancelAllWorkByTag("download_$videoId")
+        downloadDao.deleteDownload(videoId)
+    }
+
     suspend fun deleteDownload(videoId: String) = withContext(Dispatchers.IO) {
+        workManager.cancelAllWorkByTag("download_$videoId")
         downloadDao.deleteDownload(videoId)
     }
 

@@ -48,14 +48,17 @@ class SMusicService : MediaSessionService() {
             .build()
 
         // Use OkHttp DataSource with proper User-Agent for YouTube streams
-        val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+        val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
             .setUserAgent(
                 "com.google.android.apps.youtube.music/6.42.52 " +
                 "(Linux; U; Android 13; en_IN; Pixel 7 Build/TQ3A.230901.001)"
             )
 
+        // DefaultDataSource supports both HTTP(S) and local file:// URIs for offline playback
+        val defaultDataSourceFactory = androidx.media3.datasource.DefaultDataSource.Factory(this, httpDataSourceFactory)
+
         val mediaSourceFactory = DefaultMediaSourceFactory(this)
-            .setDataSourceFactory(dataSourceFactory)
+            .setDataSourceFactory(defaultDataSourceFactory)
 
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(mediaSourceFactory)

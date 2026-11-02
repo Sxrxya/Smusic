@@ -483,6 +483,79 @@ fun HomeScreen(
             }
         }
 
+        // YouTube Music Featured Playlists
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Featured Playlists", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = TextPrimary)
+            }
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                items(state.featuredPlaylists) { playlist ->
+                    androidx.compose.material3.Card(
+                        modifier = Modifier
+                            .size(width = 160.dp, height = 150.dp)
+                            .clickable {
+                                viewModel.playYouTubePlaylist(playlist)
+                                onNavigateToPlayer()
+                            },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = androidx.compose.material3.CardDefaults.cardColors(
+                            containerColor = Color.Transparent
+                        )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.linearGradient(
+                                        playlist.gradientColors.map { Color(it) }
+                                    )
+                                )
+                                .padding(14.dp),
+                            contentAlignment = Alignment.BottomStart
+                        ) {
+                            Column {
+                                Icon(
+                                    imageVector = Icons.Filled.PlayArrow,
+                                    contentDescription = "Play",
+                                    tint = Color.White,
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(Color.Black.copy(alpha = 0.35f), shape = androidx.compose.foundation.shape.CircleShape)
+                                        .padding(6.dp)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = playlist.title,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = playlist.subtitle,
+                                    color = Color.White.copy(alpha = 0.85f),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Jump Back In (Recently Played Cards)
         if (state.recentlyPlayed.isNotEmpty()) {
             item {
@@ -505,6 +578,36 @@ fun HomeScreen(
                             song = song,
                             onClick = {
                                 viewModel.playSong(song, state.recentlyPlayed, "Jump Back In")
+                                onNavigateToPlayer()
+                            },
+                        )
+                    }
+                }
+            }
+        }
+
+        // Based on Your Taste
+        if (state.basedOnTaste.isNotEmpty()) {
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Based on Your Taste", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = TextPrimary)
+                }
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(state.basedOnTaste) { song ->
+                        SongCard(
+                            song = song,
+                            onClick = {
+                                viewModel.playSong(song, state.basedOnTaste, "Based on Taste")
                                 onNavigateToPlayer()
                             },
                         )

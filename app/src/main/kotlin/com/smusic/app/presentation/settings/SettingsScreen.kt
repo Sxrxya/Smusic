@@ -274,7 +274,7 @@ fun SettingsScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Crafted with ❤️ for Music Lovers",
+                text = "Developed with ❤️ by Surya",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary,
                 modifier = Modifier.padding(bottom = 8.dp)

@@ -188,6 +188,11 @@ class InnerTubeApi @Inject constructor() {
         return browse("FEmusic_trending")
     }
 
+    suspend fun getPlaylist(playlistId: String): BrowseResponse {
+        val browseId = if (playlistId.startsWith("VL")) playlistId else "VL$playlistId"
+        return browse(browseId)
+    }
+
     suspend fun getNext(videoId: String, playlistId: String? = null): NextResponse {
         return client.post("$musicBaseUrl/next?key=$apiKey") {
             header("Content-Type", "application/json")

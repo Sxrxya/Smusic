@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,7 +51,7 @@ fun StatsScreen(
     val state by viewModel.uiState.collectAsState()
     val hours = state.totalListenTimeMs / (1000.0 * 60 * 60)
     val listenTimeDisplay = when {
-        state.totalListenTimeMs <= 0 -> "0.0 hrs"
+        state.totalListenTimeMs <= 0 -> "0 mins"
         hours < 0.1 -> {
             val mins = (state.totalListenTimeMs / (1000 * 60)).coerceAtLeast(1)
             "$mins min${if (mins > 1) "s" else ""}"
@@ -95,7 +96,7 @@ fun StatsScreen(
                 StatCard(
                     icon = Icons.Filled.LocalFireDepartment,
                     title = "Streak",
-                    value = "${state.listeningStreak.coerceAtLeast(1)} days",
+                    value = "${if (state.totalListenTimeMs <= 0 || state.listeningStreak <= 0) 0 else state.listeningStreak} days",
                     color = AccentGold,
                     modifier = Modifier.weight(1f),
                 )
@@ -140,12 +141,27 @@ fun StatsScreen(
 
         if (state.topSongs.isEmpty()) {
             item {
-                Text(
-                    "No play data yet. Start listening!",
-                    color = TextMuted,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
-                )
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = BgCard),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "Start listening to songs to see your live stats!",
+                            color = TextSecondary,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
             }
         } else {
             itemsIndexed(state.topSongs) { index, stats ->

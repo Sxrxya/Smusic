@@ -98,6 +98,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.smusic.app.domain.model.RepeatMode
 import com.smusic.app.domain.model.Song
+import androidx.compose.material.icons.filled.Bedtime
+import com.smusic.app.presentation.components.SleepTimerSheet
 import com.smusic.app.presentation.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -263,6 +265,23 @@ fun PlayerScreen(
         }
     }
 
+    // Sleep timer sheet
+    if (uiState.showSleepTimer) {
+        SleepTimerSheet(
+            isActive = uiState.sleepTimerActive,
+            remainingMinutes = uiState.sleepTimerRemaining,
+            onDismiss = { viewModel.toggleSleepTimer() },
+            onSelectTimer = { minutes ->
+                viewModel.setSleepTimer(minutes)
+                viewModel.toggleSleepTimer()
+            },
+            onCancelTimer = {
+                viewModel.cancelSleepTimer()
+                viewModel.toggleSleepTimer()
+            }
+        )
+    }
+
     // Fully opaque root container to eliminate any underlying backstack bleed-through
     Box(
         modifier = Modifier
@@ -309,7 +328,14 @@ fun PlayerScreen(
                     letterSpacing = 2.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.size(32.dp))
+                IconButton(onClick = { viewModel.toggleSleepTimer() }) {
+                    Icon(
+                        imageVector = Icons.Filled.Bedtime,
+                        contentDescription = "Sleep Timer",
+                        tint = if (uiState.sleepTimerActive) Color(0xFF00E5FF) else TextSecondary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

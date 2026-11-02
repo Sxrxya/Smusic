@@ -13,6 +13,8 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.smusic.app.data.db.dao.DownloadDao
 import com.smusic.app.data.repository.MusicRepository
 import com.smusic.app.data.repository.SettingsRepository
+import com.smusic.app.domain.engine.LanguageResolver
+import com.smusic.app.domain.engine.RecommendationEngine
 import com.smusic.app.domain.model.PlayerState
 import com.smusic.app.domain.model.RepeatMode
 import com.smusic.app.domain.model.Song
@@ -43,6 +45,8 @@ class SMusicServiceConnection @Inject constructor(
     private val crossfadeHandler: CrossfadeHandler,
     private val equalizerManager: EqualizerManager,
     private val downloadDao: DownloadDao,
+    private val recommendationEngine: RecommendationEngine,
+    private val languageResolver: LanguageResolver,
 ) {
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
@@ -55,8 +59,12 @@ class SMusicServiceConnection @Inject constructor(
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
 
-    private var playingFrom = ""
+    var playingFrom = ""
     private var consecutiveFailures = 0
+    private var activeListeningSong: Song? = null
+    private var activeListenMs: Long = 0L
+    private var activeCountedPlay: Boolean = false
+    private var lastPlaybackPos: Long = 0L
 
     fun connect() {
         if (_isConnected.value) return
@@ -114,8 +122,20 @@ class SMusicServiceConnection @Inject constructor(
     }
 
     private suspend fun loadRelatedSongs(videoId: String) {
+        if (playingFrom == "playlist" || playingFrom == "custom_playlist") {
+            return
+        }
+        val currentSong = queueManager.currentSong ?: return
+        val context = languageResolver.resolveFromSong(currentSong)
         musicRepository.getRelatedSongs(videoId).onSuccess { related ->
-            related.forEach { song ->
+            val history = queueManager.queue.value.map { it.videoId }
+            val ranked = recommendationEngine.rankCandidates(
+                seed = currentSong,
+                context = context,
+                candidates = related,
+                history = history
+            )
+            ranked.forEach { song ->
                 if (queueManager.queue.value.none { it.videoId == song.videoId }) {
                     queueManager.addToQueue(song)
                 }
@@ -142,17 +162,27 @@ class SMusicServiceConnection @Inject constructor(
 
             // 0. Offline Check: Play local downloaded file immediately if available
             try {
-                if (song.streamUrl.isNotBlank() && java.io.File(song.streamUrl).exists()) {
-                    playStream(song)
-                    return@launch
+                if (song.streamUrl.isNotBlank()) {
+                    val file = if (song.streamUrl.startsWith("file://")) {
+                        java.io.File(android.net.Uri.parse(song.streamUrl).path ?: "")
+                    } else {
+                        java.io.File(song.streamUrl)
+                    }
+                    if (file.exists() && file.length() > 0) {
+                        val fileUri = android.net.Uri.fromFile(file).toString()
+                        val offlineSong = song.copy(streamUrl = fileUri)
+                        playStream(offlineSong)
+                        return@launch
+                    }
                 }
                 val localDownload = downloadDao.getDownloadById(song.videoId)
                 if (localDownload != null && localDownload.state == "DOWNLOADED" && localDownload.filePath.isNotBlank()) {
                     val file = java.io.File(localDownload.filePath)
                     if (file.exists() && file.length() > 0) {
-                        val offlineSong = song.copy(streamUrl = localDownload.filePath, bitrate = localDownload.bitrate)
+                        val fileUri = android.net.Uri.fromFile(file).toString()
+                        val offlineSong = song.copy(streamUrl = fileUri, bitrate = localDownload.bitrate)
                         playStream(offlineSong)
-                        musicRepository.recordPlay(offlineSong)
+                        musicRepository.recordSongStarted(offlineSong)
                         return@launch
                     }
                 }
@@ -173,7 +203,7 @@ class SMusicServiceConnection @Inject constructor(
                     }
                     val updatedSong = song.copy(streamUrl = url, bitrate = bitrate, durationSeconds = validDuration)
                     playStream(updatedSong)
-                    musicRepository.recordPlay(updatedSong)
+                    musicRepository.recordSongStarted(updatedSong)
                     
                     if (queueManager.currentIndex.value >= queueManager.queue.value.size - 2) {
                         loadRelatedSongs(song.videoId)
@@ -221,9 +251,15 @@ class SMusicServiceConnection @Inject constructor(
             .setArtworkUri(android.net.Uri.parse(song.thumbnailUrl))
             .build()
 
+        val uri = if (song.streamUrl.startsWith("http://") || song.streamUrl.startsWith("https://") || song.streamUrl.startsWith("file://") || song.streamUrl.startsWith("content://")) {
+            android.net.Uri.parse(song.streamUrl)
+        } else {
+            android.net.Uri.fromFile(java.io.File(song.streamUrl))
+        }
+
         val mediaItemBuilder = MediaItem.Builder()
             .setMediaId(song.videoId)
-            .setUri(song.streamUrl)
+            .setUri(uri)
             .setMediaMetadata(metadata)
 
         if (song.streamUrl.contains(".m3u8") || song.streamUrl.contains("manifest/hls")) {
@@ -406,6 +442,35 @@ class SMusicServiceConnection @Inject constructor(
                         crossfadeHandler.shouldStartCrossfade(pos, dur)
                     ) {
                         crossfadeHandler.startCrossfade()
+                    }
+
+                    // Track accurate listen duration and play counts
+                    val curSong = queueManager.currentSong
+                    if (curSong?.videoId != activeListeningSong?.videoId) {
+                        val prevSong = activeListeningSong
+                        val prevMs = activeListenMs
+                        if (prevSong != null && prevMs > 1000L) {
+                            scope.launch(Dispatchers.IO) {
+                                musicRepository.recordListenDuration(prevSong, prevMs)
+                            }
+                        }
+                        activeListeningSong = curSong
+                        activeListenMs = 0L
+                        activeCountedPlay = false
+                        lastPlaybackPos = pos
+                    } else if (curSong != null) {
+                        if (pos > lastPlaybackPos && pos - lastPlaybackPos < 2000L) {
+                            val delta = pos - lastPlaybackPos
+                            activeListenMs += delta
+                        }
+                        lastPlaybackPos = pos
+
+                        if (!activeCountedPlay && activeListenMs >= 15_000L) {
+                            activeCountedPlay = true
+                            scope.launch(Dispatchers.IO) {
+                                musicRepository.recordPlayCount(curSong)
+                            }
+                        }
                     }
 
                     updateState {

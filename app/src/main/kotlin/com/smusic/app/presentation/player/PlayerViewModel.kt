@@ -61,6 +61,7 @@ class PlayerViewModel @Inject constructor(
 
     private var currentLyricsSongId: String? = null
     private var downloadCheckJob: Job? = null
+    private var sleepTimerJob: Job? = null
 
     init {
         observePlayerState()
@@ -113,6 +114,9 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun fetchAndRefillQueue(currentSong: Song, currentQueue: List<Song>) {
+        if (serviceConnection.playingFrom == "playlist" || serviceConnection.playingFrom == "custom_playlist") {
+            return
+        }
         viewModelScope.launch {
             val context = languageResolver.resolveFromSong(currentSong)
             
@@ -161,11 +165,21 @@ class PlayerViewModel @Inject constructor(
 
     fun downloadSong(song: Song) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isDownloading = true,
-                toastMessage = "Downloading ${song.title} in 320 kbps..."
-            )
-            downloadRepository.queueDownload(song)
+            if (_uiState.value.isDownloading) {
+                downloadRepository.cancelDownload(song.videoId)
+                _uiState.value = _uiState.value.copy(
+                    isDownloading = false,
+                    downloadProgress = 0,
+                    toastMessage = "Download paused"
+                )
+            } else if (!_uiState.value.isDownloaded) {
+                _uiState.value = _uiState.value.copy(
+                    isDownloading = true,
+                    downloadProgress = 0,
+                    toastMessage = "Downloading ${song.title} in 320 kbps..."
+                )
+                downloadRepository.queueDownload(song)
+            }
         }
     }
 
@@ -208,6 +222,52 @@ class PlayerViewModel @Inject constructor(
 
     fun toggleSleepTimer() {
         _uiState.value = _uiState.value.copy(showSleepTimer = !_uiState.value.showSleepTimer)
+    }
+
+    fun setSleepTimer(minutes: Int) {
+        sleepTimerJob?.cancel()
+        if (minutes == -1) {
+            _uiState.value = _uiState.value.copy(
+                sleepTimerActive = true,
+                sleepTimerRemaining = -1,
+                toastMessage = "Sleep timer set: End of current song"
+            )
+            val currentId = playerState.value.currentSong?.videoId
+            sleepTimerJob = viewModelScope.launch {
+                playerState.collectLatest { state ->
+                    if (state.currentSong?.videoId != currentId || (!state.isPlaying && state.positionMs >= state.durationMs - 1000 && state.durationMs > 0)) {
+                        serviceConnection.playPause()
+                        cancelSleepTimer()
+                    }
+                }
+            }
+        } else if (minutes > 0) {
+            _uiState.value = _uiState.value.copy(
+                sleepTimerActive = true,
+                sleepTimerRemaining = minutes,
+                toastMessage = "Sleep timer set for $minutes minutes"
+            )
+            sleepTimerJob = viewModelScope.launch {
+                var remaining = minutes
+                while (remaining > 0) {
+                    kotlinx.coroutines.delay(60_000L)
+                    remaining--
+                    _uiState.value = _uiState.value.copy(sleepTimerRemaining = remaining)
+                }
+                serviceConnection.playPause()
+                cancelSleepTimer()
+            }
+        }
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        _uiState.value = _uiState.value.copy(
+            sleepTimerActive = false,
+            sleepTimerRemaining = 0,
+            toastMessage = "Sleep timer cancelled"
+        )
     }
 
     fun playPause() = serviceConnection.playPause()

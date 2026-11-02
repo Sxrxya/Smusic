@@ -25,6 +25,22 @@ interface SongStatsDao {
     """)
     suspend fun incrementPlayCount(videoId: String, listenTimeMs: Long, playedAt: Long)
 
+    @Query("""
+        UPDATE song_stats
+        SET totalListenTimeMs = totalListenTimeMs + :durationMs,
+            lastPlayedAt = :playedAt
+        WHERE videoId = :videoId
+    """)
+    suspend fun addListenDuration(videoId: String, durationMs: Long, playedAt: Long)
+
+    @Query("""
+        UPDATE song_stats
+        SET playCount = playCount + 1,
+            lastPlayedAt = :playedAt
+        WHERE videoId = :videoId
+    """)
+    suspend fun incrementPlayOnly(videoId: String, playedAt: Long)
+
     @Query("SELECT * FROM song_stats ORDER BY playCount DESC LIMIT :limit")
     fun getMostPlayedSongs(limit: Int = 10): Flow<List<SongStatsEntity>>
 
@@ -37,7 +53,7 @@ interface SongStatsDao {
     @Query("SELECT * FROM song_stats ORDER BY playCount DESC LIMIT 1")
     suspend fun getMostPlayedSong(): SongStatsEntity?
 
-    @Query("SELECT COUNT(DISTINCT date(lastPlayedAt / 1000, 'unixepoch', 'localtime')) FROM song_stats WHERE lastPlayedAt >= :sinceMs")
+    @Query("SELECT COUNT(DISTINCT date(lastPlayedAt / 1000, 'unixepoch', 'localtime')) FROM song_stats WHERE lastPlayedAt >= :sinceMs AND (playCount > 0 OR totalListenTimeMs >= 15000)")
     suspend fun getListeningDaysCount(sinceMs: Long): Int
 
     @Query("SELECT * FROM song_stats WHERE lastPlayedAt >= :sinceMs ORDER BY playCount DESC LIMIT :limit")

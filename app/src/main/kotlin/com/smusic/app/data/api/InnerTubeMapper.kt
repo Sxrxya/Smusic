@@ -32,7 +32,7 @@ object InnerTubeMapper {
 
         for (section in sections) {
 
-            val items = section.musicShelfRenderer?.contents ?: continue
+            val items = section.musicShelfRenderer?.contents ?: section.musicPlaylistShelfRenderer?.contents ?: continue
 
             for (item in items) {
 
@@ -286,7 +286,7 @@ object InnerTubeMapper {
 
         for (section in sections) {
 
-            val items = section.musicShelfRenderer?.contents ?: continue
+            val items = section.musicShelfRenderer?.contents ?: section.musicPlaylistShelfRenderer?.contents ?: continue
 
             for (item in items) {
 
@@ -466,23 +466,38 @@ object InnerTubeMapper {
 
 
 
-    fun mapLrcToLyricLines(lrcContent: String?): List<LyricLine> {
-
+    fun mapLrcToLyricLines(lrcContent: String?, songDurationMs: Long = 0L): List<LyricLine> {
         if (lrcContent.isNullOrBlank()) return emptyList()
         val lines = mutableListOf<LyricLine>()
-        val regex = Regex("""\[(\d{2}):(\d{2})\.(\d{2,3})](.*)""")
-        for (line in lrcContent.lines()) {
+        val regex = Regex("""\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\](.*)""")
+        for (rawLine in lrcContent.lines()) {
+            val line = rawLine.trim()
             val match = regex.find(line) ?: continue
-            val (minutes, seconds, hundredths, text) = match.destructured
-            val timeMs = minutes.toLong() * 60_000 + seconds.toLong() * 1000 + hundredths.padEnd(3, '0').toLong()
-            lines.add(LyricLine(timeMs = timeMs, text = text.trim()))
+            val minutes = match.groupValues[1].toLongOrNull() ?: 0L
+            val seconds = match.groupValues[2].toLongOrNull() ?: 0L
+            val msStr = match.groupValues[3]
+            val millis = when (msStr.length) {
+                1 -> msStr.toLong() * 100
+                2 -> msStr.toLong() * 10
+                3 -> msStr.toLong()
+                else -> 0L
+            }
+            val text = match.groupValues[4].trim()
+            if (text.isNotBlank()) {
+                val timeMs = minutes * 60_000L + seconds * 1000L + millis
+                lines.add(LyricLine(timeMs = timeMs, text = text))
+            }
         }
         if (lines.isEmpty()) {
             val plainLines = lrcContent.lines()
                 .map { it.replace(Regex("<[^>]*>"), "").trim() }
                 .filter { it.isNotBlank() }
             if (plainLines.isNotEmpty()) {
-                val stepMs = 3500L
+                val stepMs = if (songDurationMs > 10_000L) {
+                    (songDurationMs / plainLines.size).coerceIn(2000L, 5000L)
+                } else {
+                    3500L
+                }
                 return plainLines.mapIndexed { idx, txt -> LyricLine(timeMs = idx * stepMs, text = txt) }
             }
         }
