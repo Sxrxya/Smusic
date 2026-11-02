@@ -2,16 +2,7 @@ package com.smusic.app.presentation.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -20,29 +11,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.smusic.app.player.EqualizerManager
 import com.smusic.app.presentation.theme.*
 
 val eqPresets = listOf("Flat", "Bass Boost", "Pop", "Rock", "Jazz", "Classical", "Electronic", "Hip-Hop", "R&B", "Vocal")
@@ -54,15 +30,20 @@ fun EqualizerScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val prefs by viewModel.prefs.collectAsState()
-    val bands = remember { mutableStateListOf(*prefs.equalizerBands.toTypedArray()) }
-    var bassBoost by remember { mutableIntStateOf(prefs.bassBoost) }
-    var virtualizer by remember { mutableIntStateOf(prefs.virtualizer) }
-    var loudness by remember { mutableIntStateOf(prefs.loudnessEnhancer) }
+    val bands = remember { mutableStateListOf<Int>() }
+
+    LaunchedEffect(prefs.equalizerBands) {
+        bands.clear()
+        bands.addAll(prefs.equalizerBands)
+        if (bands.size < 10) {
+            while (bands.size < 10) bands.add(0)
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BgPrimary)
+            .background(Color(0xFF07090E))
             .statusBarsPadding()
             .verticalScroll(rememberScrollState()),
     ) {
@@ -73,10 +54,9 @@ fun EqualizerScreen(
             IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Back", tint = TextPrimary) }
             Text("Equalizer", style = MaterialTheme.typography.headlineMedium, color = TextPrimary)
             Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = {
-                bands.indices.forEach { bands[it] = 0 }
-                bassBoost = 0; virtualizer = 0; loudness = 0
-            }) { Icon(Icons.Filled.Refresh, "Reset", tint = TextSecondary) }
+            IconButton(onClick = { viewModel.resetEqualizer() }) {
+                Icon(Icons.Filled.Refresh, "Reset", tint = TextSecondary)
+            }
         }
 
         // Presets
@@ -88,13 +68,19 @@ fun EqualizerScreen(
                 val isSelected = prefs.equalizerPreset == preset
                 FilterChip(
                     selected = isSelected,
-                    onClick = { viewModel.updateStreamQuality(preset) },
+                    onClick = { viewModel.applyEqualizerPreset(preset) },
                     label = { Text(preset, color = if (isSelected) Color.White else TextSecondary) },
                     colors = FilterChipDefaults.filterChipColors(
                         containerColor = BgCard,
-                        selectedContainerColor = AccentPrimary,
+                        selectedContainerColor = Color(0xFFFA233B),
                     ),
-                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(
+                            1.dp,
+                            if (isSelected) Color(0xFFFA233B) else Color.White.copy(alpha = 0.1f),
+                            RoundedCornerShape(12.dp)
+                        ),
                     border = FilterChipDefaults.filterChipBorder(
                         borderColor = Color.Transparent, selectedBorderColor = Color.Transparent,
                         enabled = true, selected = isSelected,
@@ -122,13 +108,14 @@ fun EqualizerScreen(
                     Slider(
                         value = level.toFloat(),
                         onValueChange = { bands[index] = it.toInt() },
+                        onValueChangeFinished = { viewModel.updateBandLevel(index, bands[index]) },
                         valueRange = -1500f..1500f,
                         modifier = Modifier
                             .weight(1f)
                             .padding(vertical = 4.dp),
                         colors = SliderDefaults.colors(
-                            thumbColor = TextPrimary,
-                            activeTrackColor = AccentPrimary,
+                            thumbColor = Color.White,
+                            activeTrackColor = Color(0xFF00E5FF),
                             inactiveTrackColor = Color.White.copy(alpha = 0.1f),
                         ),
                     )
@@ -147,28 +134,28 @@ fun EqualizerScreen(
         // Bass Boost
         SettingsSliderItem(
             title = "Bass Boost",
-            value = bassBoost.toFloat(),
+            value = prefs.bassBoost.toFloat(),
             range = 0f..1000f,
-            valueLabel = "$bassBoost",
-            onValueChange = { bassBoost = it.toInt() },
+            valueLabel = "${prefs.bassBoost}",
+            onValueChange = { viewModel.updateBassBoost(it.toInt()) },
         )
 
         // Virtualizer
         SettingsSliderItem(
             title = "Virtualizer",
-            value = virtualizer.toFloat(),
+            value = prefs.virtualizer.toFloat(),
             range = 0f..1000f,
-            valueLabel = "$virtualizer",
-            onValueChange = { virtualizer = it.toInt() },
+            valueLabel = "${prefs.virtualizer}",
+            onValueChange = { viewModel.updateVirtualizer(it.toInt()) },
         )
 
         // Loudness
         SettingsSliderItem(
             title = "Loudness Enhancer",
-            value = loudness.toFloat(),
+            value = prefs.loudnessEnhancer.toFloat(),
             range = 0f..1000f,
-            valueLabel = "$loudness",
-            onValueChange = { loudness = it.toInt() },
+            valueLabel = "${prefs.loudnessEnhancer}",
+            onValueChange = { viewModel.updateLoudnessEnhancer(it.toInt()) },
         )
 
         Spacer(modifier = Modifier.height(80.dp))

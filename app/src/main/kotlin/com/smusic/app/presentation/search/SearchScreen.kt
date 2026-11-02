@@ -3,18 +3,7 @@ package com.smusic.app.presentation.search
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -26,29 +15,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -58,24 +40,26 @@ import com.smusic.app.presentation.components.ShimmerSongRow
 import com.smusic.app.presentation.components.SongRow
 import com.smusic.app.presentation.theme.*
 
-data class CategoryItem(
-    val name: String,
-    val gradient: List<Color>,
+data class EditorialCategory(
+    val title: String,
+    val key: String,
+    val backgroundColor: Color,
+    val badgeText: String,
 )
 
-val categories = listOf(
-    CategoryItem("Trending 🔥", listOf(AccentPrimary, AccentSecondary)),
-    CategoryItem("Bollywood 🎬", listOf(BollywoodGradient2, BollywoodGradient3)),
-    CategoryItem("Pop 🎵", listOf(ChillGradient2, ChillGradient3)),
-    CategoryItem("Hip-Hop 🎤", listOf(PartyGradient2, PartyGradient3)),
-    CategoryItem("Rock 🎸", listOf(PunjabiGradient2, PunjabiGradient3)),
-    CategoryItem("Tamil 🌟", listOf(IndieGradient2, IndieGradient3)),
-    CategoryItem("Telugu 🎭", listOf(RomanticGradient2, RomanticGradient3)),
-    CategoryItem("Devotional 🙏", listOf(AccentGold, AccentPrimary)),
-    CategoryItem("Romantic ❤️", listOf(RomanticGradient1, RomanticGradient3)),
-    CategoryItem("Party 🎉", listOf(PartyGradient1, PartyGradient3)),
-    CategoryItem("Workout 💪", listOf(PunjabiGradient1, PunjabiGradient3)),
-    CategoryItem("Chill 🌙", listOf(ChillGradient1, ChillGradient3)),
+val editorialCategories = listOf(
+    EditorialCategory("Charts", "Trending", Color(0xFF472A52), "Top Songs"),
+    EditorialCategory("Tamil Hits", "Tamil", Color(0xFF006450), "Kollywood"),
+    EditorialCategory("Telugu Pop", "Telugu", Color(0xFF1E3264), "Tollywood"),
+    EditorialCategory("Bollywood", "Bollywood", Color(0xFF8D1627), "Hindi Hits"),
+    EditorialCategory("Punjabi", "Punjabi", Color(0xFFBA5D07), "Bhangra"),
+    EditorialCategory("Pop", "Pop", Color(0xFF8400E7), "Global"),
+    EditorialCategory("Hip-Hop", "Hip-Hop", Color(0xFFBC5900), "Beats"),
+    EditorialCategory("Romantic", "Romantic", Color(0xFF900B32), "Melodies"),
+    EditorialCategory("Party", "Party", Color(0xFF7D4B32), "Club Mix"),
+    EditorialCategory("Workout", "Workout", Color(0xFF0E6E77), "Energy"),
+    EditorialCategory("Chill & Focus", "Chill", Color(0xFF283EA3), "Lo-Fi"),
+    EditorialCategory("Devotional", "Devotional", Color(0xFF985408), "Spiritual"),
 )
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -101,14 +85,14 @@ fun SearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BgPrimary)
+            .background(Color(0xFF07090E))
             .statusBarsPadding(),
     ) {
         // Search bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -121,33 +105,50 @@ fun SearchScreen(
             Row(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color.White.copy(alpha = 0.05f))
-                    .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
+                .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Icon(Icons.Filled.Search, "Search", tint = TextMuted)
+                Icon(
+                    Icons.Filled.Search,
+                    contentDescription = "Search",
+                    tint = TextPrimary.copy(alpha = 0.7f),
+                    modifier = Modifier.size(20.dp)
+                )
                 BasicTextField(
                     value = state.query,
                     onValueChange = viewModel::onQueryChanged,
                     singleLine = true,
-                    textStyle = TextStyle(color = TextPrimary, fontSize = 16.sp),
-                    cursorBrush = SolidColor(AccentPrimary),
+                    textStyle = TextStyle(
+                        color = TextPrimary,
+                        fontSize = 16.sp,
+                        fontFamily = InterFamily,
+                    ),
+                    cursorBrush = SolidColor(Color(0xFF00E5FF)),
                     modifier = Modifier
                         .weight(1f)
                         .focusRequester(focusRequester),
                     decorationBox = { innerTextField ->
                         if (state.query.isEmpty()) {
-                            Text("Search songs, artists, albums…", color = TextMuted, fontSize = 16.sp)
+                            Text(
+                                "What do you want to listen to?",
+                                color = TextMuted,
+                                fontSize = 15.sp,
+                                fontFamily = InterFamily,
+                            )
                         }
                         innerTextField()
                     },
                 )
                 if (state.query.isNotEmpty()) {
-                    IconButton(onClick = { viewModel.onQueryChanged("") }, modifier = Modifier.height(24.dp)) {
-                        Icon(Icons.Filled.Clear, "Clear", tint = TextMuted)
+                    IconButton(
+                        onClick = { viewModel.onQueryChanged("") },
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Icon(Icons.Filled.Clear, "Clear", tint = TextMuted, modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -158,11 +159,15 @@ fun SearchScreen(
             Text(
                 text = state.categoryName,
                 style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
                 color = TextPrimary,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             )
-            LazyColumn {
-                items(state.categorySongs) { song ->
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 100.dp)
+            ) {
+                items(state.categorySongs, key = { it.videoId }) { song ->
                     SongRow(
                         song = song,
                         onClick = {
@@ -176,72 +181,136 @@ fun SearchScreen(
         }
 
         if (state.query.isEmpty()) {
-            // Recent searches
-            if (state.recentSearches.isNotEmpty()) {
-                Text(
-                    text = "Recent Searches",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-                FlowRow(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    state.recentSearches.take(8).forEach { search ->
-                        AssistChip(
-                            onClick = { viewModel.onQueryChanged(search); viewModel.search(search) },
-                            label = { Text(search, color = TextPrimary) },
-                            trailingIcon = {
-                                Icon(
-                                    Icons.Filled.Close,
-                                    "Remove",
-                                    tint = TextMuted,
-                                    modifier = Modifier.clickable { viewModel.removeRecentSearch(search) },
-                                )
-                            },
-                            colors = AssistChipDefaults.assistChipColors(containerColor = CardElevated),
-                            border = AssistChipDefaults.assistChipBorder(borderColor = Color.Transparent, enabled = true),
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 100.dp)
+            ) {
+                // Recent searches
+                if (state.recentSearches.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Recent Searches",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                         )
+                        FlowRow(
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            state.recentSearches.take(6).forEach { search ->
+                                AssistChip(
+                                    onClick = {
+                                        viewModel.onQueryChanged(search)
+                                        viewModel.search(search)
+                                    },
+                                    label = { Text(search, color = TextPrimary) },
+                                    trailingIcon = {
+                                        Icon(
+                                            Icons.Filled.Close,
+                                            "Remove",
+                                            tint = TextMuted,
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .clickable { viewModel.removeRecentSearch(search) },
+                                        )
+                                    },
+                                    colors = AssistChipDefaults.assistChipColors(containerColor = Color.White.copy(alpha = 0.08f)),
+                                    border = AssistChipDefaults.assistChipBorder(borderColor = Color.White.copy(alpha = 0.12f), enabled = true),
+                                    shape = RoundedCornerShape(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(18.dp))
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
 
-            // Browse categories grid
-            Text(
-                text = "Browse Categories",
-                style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                items(categories) { category ->
-                    val categoryKey = category.name.split(" ").first()
+                // Browse all header
+                item {
+                    Text(
+                        text = "Browse all",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = TextPrimary,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    )
+                }
+
+                // Editorial categories grid
+                item {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Brush.linearGradient(category.gradient))
-                            .clickable { onNavigateToCategory(categoryKey) }
-                            .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(
-                            text = category.name,
-                            color = TextPrimary,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.ExtraBold,
-                        )
+                        editorialCategories.chunked(2).forEach { rowItems ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                rowItems.forEach { category ->
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(106.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(category.backgroundColor)
+                                            .clickable {
+                                                viewModel.onQueryChanged(category.key)
+                                                viewModel.search(category.key)
+                                            }
+                                    ) {
+                                        // Category title top-left
+                                        Text(
+                                            text = category.title,
+                                            color = Color.White,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier
+                                                .padding(start = 12.dp, top = 12.dp, end = 40.dp)
+                                                .align(Alignment.TopStart)
+                                        )
+
+                                        // Apple/Spotify-style angled cover badge pinned in bottom-right corner
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .offset(x = 10.dp, y = 6.dp)
+                                                .rotate(20f)
+                                                .size(62.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(Color.Black.copy(alpha = 0.35f))
+                                                .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                .padding(4.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Icon(
+                                                    Icons.Filled.GraphicEq,
+                                                    contentDescription = null,
+                                                    tint = Color.White.copy(alpha = 0.8f),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Text(
+                                                    text = category.badgeText,
+                                                    color = Color.White,
+                                                    fontSize = 8.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                if (rowItems.size == 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -249,7 +318,10 @@ fun SearchScreen(
             // Search results
             when {
                 state.isSearching -> {
-                    LazyColumn {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 100.dp)
+                    ) {
                         items(6) { ShimmerSongRow() }
                     }
                 }
@@ -260,12 +332,15 @@ fun SearchScreen(
                     EmptyState(message = "No results found for \"${state.query}\"")
                 }
                 else -> {
-                    LazyColumn {
-                        items(state.results) { song ->
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 100.dp)
+                    ) {
+                        items(state.results, key = { it.videoId }) { song ->
                             SongRow(
                                 song = song,
                                 onClick = {
-                                    viewModel.playSong(song, state.results, "Search: ${state.query}")
+                                    viewModel.playSong(song, state.results, "Search Results")
                                     onNavigateToPlayer()
                                 },
                             )

@@ -77,14 +77,15 @@ class LibraryRepository @Inject constructor(
 
     // ── Playlists ──────────────────────────────────────
     fun getAllPlaylists(): Flow<List<Playlist>> {
-        return playlistDao.getAllPlaylists().map { entities ->
-            entities.map { e ->
+        return playlistDao.getAllPlaylistsWithCount().map { list ->
+            list.map { item ->
                 Playlist(
-                    playlistId = e.playlistId,
-                    name = e.name,
-                    thumbnailUrl = e.thumbnailUrl,
-                    createdAt = e.createdAt,
-                    isPinned = e.isPinned,
+                    playlistId = item.playlistId,
+                    name = item.name,
+                    thumbnailUrl = item.thumbnailUrl,
+                    songCount = item.songCount,
+                    createdAt = item.createdAt,
+                    isPinned = item.isPinned,
                 )
             }
         }

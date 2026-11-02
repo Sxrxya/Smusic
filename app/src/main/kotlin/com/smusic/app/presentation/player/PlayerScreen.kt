@@ -112,7 +112,6 @@ fun PlayerScreen(
     val context = LocalContext.current
     val playerState by viewModel.playerState.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
-    var showMoreMenu by remember { mutableStateOf(false) }
 
     val song = playerState.currentSong
 
@@ -310,63 +309,7 @@ fun PlayerScreen(
                     letterSpacing = 2.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Box {
-                    IconButton(onClick = { showMoreMenu = true }) {
-                        Icon(Icons.Filled.MoreVert, "More", tint = TextSecondary)
-                    }
-                    DropdownMenu(
-                        expanded = showMoreMenu,
-                        onDismissRequest = { showMoreMenu = false },
-                        modifier = Modifier.background(Color(0xFF141926))
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("View Artist", color = TextPrimary) },
-                            leadingIcon = { Icon(Icons.Filled.Person, null, tint = AccentSecondary) },
-                            onClick = {
-                                showMoreMenu = false
-                                onNavigateToArtist(song.artistId.ifEmpty { song.artist })
-                            }
-                        )
-                        if (song.albumId.isNotBlank()) {
-                            DropdownMenuItem(
-                                text = { Text("View Album", color = TextPrimary) },
-                                leadingIcon = { Icon(Icons.Filled.MusicNote, null, tint = AccentSecondary) },
-                                onClick = {
-                                    showMoreMenu = false
-                                    onNavigateToAlbum(song.albumId)
-                                }
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = { Text("Equalizer", color = TextPrimary) },
-                            leadingIcon = { Icon(Icons.Filled.GraphicEq, null, tint = AccentPrimary) },
-                            onClick = {
-                                showMoreMenu = false
-                                onNavigateToEqualizer()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Share Track", color = TextPrimary) },
-                            leadingIcon = { Icon(Icons.Filled.Share, null, tint = TextSecondary) },
-                            onClick = {
-                                showMoreMenu = false
-                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, "Listening to " + song.title + " by " + song.artist + " on SMusic! 🎵\nhttps://youtube.com/watch?v=" + song.videoId)
-                                }
-                                context.startActivity(Intent.createChooser(sendIntent, "Share Track"))
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Sleep Timer", color = TextPrimary) },
-                            leadingIcon = { Icon(Icons.Filled.Timer, null, tint = TextSecondary) },
-                            onClick = {
-                                showMoreMenu = false
-                                viewModel.toggleSleepTimer()
-                            }
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.size(32.dp))
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -467,18 +410,33 @@ fun PlayerScreen(
                     Icon(Icons.Filled.PlaylistAdd, "Add to Playlist", tint = TextSecondary, modifier = Modifier.size(28.dp))
                 }
 
-                // Download button with real status feedback
+                // Download button with round percentage indicator
                 IconButton(onClick = { viewModel.downloadSong(song) }) {
                     when {
                         uiState.isDownloading -> {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = AccentSecondary,
-                                strokeWidth = 2.5.dp
-                            )
+                            Box(
+                                modifier = Modifier.size(36.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    progress = { (uiState.downloadProgress.coerceIn(1, 100)) / 100f },
+                                    modifier = Modifier.size(32.dp),
+                                    color = Color(0xFF00E5FF),
+                                    trackColor = Color.White.copy(alpha = 0.15f),
+                                    strokeWidth = 2.5.dp
+                                )
+                                Text(
+                                    text = "${uiState.downloadProgress}%",
+                                    color = Color(0xFF00E5FF),
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                         uiState.isDownloaded -> {
-                            Icon(Icons.Filled.CheckCircle, "Downloaded", tint = AccentSecondary, modifier = Modifier.size(28.dp))
+                            Icon(Icons.Filled.CheckCircle, "Downloaded", tint = Color(0xFF00E5FF), modifier = Modifier.size(28.dp))
                         }
                         else -> {
                             Icon(Icons.Filled.Download, "Download", tint = TextSecondary, modifier = Modifier.size(28.dp))
@@ -486,21 +444,11 @@ fun PlayerScreen(
                     }
                 }
 
-                // Share button
-                IconButton(onClick = {
-                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, "Listening to " + song.title + " by " + song.artist + " on SMusic! 🎵\nhttps://youtube.com/watch?v=" + song.videoId)
-                    }
-                    context.startActivity(Intent.createChooser(sendIntent, "Share Track"))
-                }) {
-                    Icon(Icons.Filled.Share, "Share", tint = TextSecondary, modifier = Modifier.size(26.dp))
-                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Seek bar with dynamic progress
+            // Single unified interactive seek bar
             var sliderPosition by remember(playerState.currentSong?.videoId, playerState.positionMs) {
                 mutableFloatStateOf(playerState.positionMs.toFloat())
             }
@@ -512,36 +460,20 @@ fun PlayerScreen(
                 valueRange = 0f..playerState.effectiveDurationMs.toFloat().coerceAtLeast(1f),
                 modifier = Modifier.fillMaxWidth(),
                 colors = SliderDefaults.colors(
-                    thumbColor = TextPrimary,
-                    activeTrackColor = Color.Transparent,
-                    inactiveTrackColor = Color.White.copy(alpha = 0.1f),
+                    thumbColor = Color.White,
+                    activeTrackColor = Color(0xFFFA233B),
+                    inactiveTrackColor = Color.White.copy(alpha = 0.15f),
                 ),
             )
-
-            // Neon Gradient Track
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.1f))
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(playerState.progress)
-                        .height(4.dp)
-                        .background(Brush.horizontalGradient(listOf(Color(0xFFFA233B), Color(0xFF00E5FF))))
-                )
-            }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
+                    .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text(playerState.currentTimeFormatted, color = TextMuted, style = MaterialTheme.typography.labelMedium)
-                Text(playerState.totalTimeFormatted, color = TextMuted, style = MaterialTheme.typography.labelMedium)
+                Text(playerState.currentTimeFormatted, color = TextMuted, style = MaterialTheme.typography.labelSmall)
+                Text(playerState.totalTimeFormatted, color = TextMuted, style = MaterialTheme.typography.labelSmall)
             }
 
             Spacer(modifier = Modifier.height(28.dp))

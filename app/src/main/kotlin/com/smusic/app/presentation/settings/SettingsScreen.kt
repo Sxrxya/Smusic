@@ -1,45 +1,30 @@
 package com.smusic.app.presentation.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.res.stringResource
-import com.smusic.app.SMusicApp
-import com.smusic.app.R
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material3.Divider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.smusic.app.R
+import com.smusic.app.SMusicApp
 import com.smusic.app.presentation.theme.*
 
 @Composable
@@ -50,10 +35,155 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val prefs by viewModel.prefs.collectAsState()
+    val context = LocalContext.current
+
+    var showStreamQualityDialog by remember { mutableStateOf(false) }
+    var showDownloadQualityDialog by remember { mutableStateOf(false) }
+    var showClearCacheDialog by remember { mutableStateOf(false) }
+
+    // Stream Quality Dialog
+    if (showStreamQualityDialog) {
+        val streamOptions = listOf("320 kbps (High Quality)", "160 kbps (Standard)", "96 kbps (Data Saver)")
+        AlertDialog(
+            onDismissRequest = { showStreamQualityDialog = false },
+            title = { Text("Streaming Quality", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    streamOptions.forEach { option ->
+                        val key = option.split(" ").first()
+                        val isSelected = prefs.streamQuality.startsWith(key)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    viewModel.updateStreamQuality(key)
+                                    showStreamQualityDialog = false
+                                }
+                                .padding(vertical = 10.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = {
+                                    viewModel.updateStreamQuality(key)
+                                    showStreamQualityDialog = false
+                                },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = Color(0xFFFA233B),
+                                    unselectedColor = TextMuted
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = option,
+                                color = if (isSelected) Color.White else TextSecondary,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showStreamQualityDialog = false }) {
+                    Text("Close", color = Color(0xFFFA233B))
+                }
+            },
+            containerColor = Color(0xFF131722),
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    // Download Quality Dialog
+    if (showDownloadQualityDialog) {
+        val downloadOptions = listOf("320 kbps (High Quality)", "160 kbps (Standard Quality)")
+        AlertDialog(
+            onDismissRequest = { showDownloadQualityDialog = false },
+            title = { Text("Download Quality", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    downloadOptions.forEach { option ->
+                        val key = option.split(" ").first()
+                        val isSelected = prefs.downloadQuality.startsWith(key)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    viewModel.updateDownloadQuality(key)
+                                    showDownloadQualityDialog = false
+                                }
+                                .padding(vertical = 10.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = {
+                                    viewModel.updateDownloadQuality(key)
+                                    showDownloadQualityDialog = false
+                                },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = Color(0xFF00E5FF),
+                                    unselectedColor = TextMuted
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = option,
+                                color = if (isSelected) Color.White else TextSecondary,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDownloadQualityDialog = false }) {
+                    Text("Close", color = Color(0xFF00E5FF))
+                }
+            },
+            containerColor = Color(0xFF131722),
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    // Clear Cache Dialog
+    if (showClearCacheDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearCacheDialog = false },
+            title = { Text("Clear Download Cache?", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "This will delete all offline downloaded songs from your device storage.",
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.clearAllDownloads()
+                        showClearCacheDialog = false
+                        Toast.makeText(context, "All offline downloads cleared", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFA233B))
+                ) {
+                    Text("Clear All", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearCacheDialog = false }) {
+                    Text("Cancel", color = TextSecondary)
+                }
+            },
+            containerColor = Color(0xFF131722),
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(Color(0xFF07090E))
             .statusBarsPadding()
             .verticalScroll(rememberScrollState()),
     ) {
@@ -64,14 +194,18 @@ fun SettingsScreen(
             IconButton(onClick = onBack) {
                 Icon(Icons.Filled.ArrowBack, "Back", tint = TextPrimary)
             }
-            Text("Settings", style = MaterialTheme.typography.headlineMedium, color = TextPrimary)
+            Text("Settings", style = MaterialTheme.typography.headlineMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
         }
 
         // Audio Quality
         SectionTitle("Audio Quality")
-        SettingsItem("Stream Quality", prefs.streamQuality) { }
-        SettingsItem("Download Quality", prefs.downloadQuality) { }
-        SettingsClickItem("Equalizer") { onNavigateToEqualizer() }
+        SettingsItem("Stream Quality", "${prefs.streamQuality} kbps") {
+            showStreamQualityDialog = true
+        }
+        SettingsItem("Download Quality", "${prefs.downloadQuality} kbps") {
+            showDownloadQualityDialog = true
+        }
+        SettingsClickItem("Equalizer & Sound Effects") { onNavigateToEqualizer() }
 
         SettingsSliderItem(
             title = "Crossfade",
@@ -99,8 +233,9 @@ fun SettingsScreen(
 
         // Downloads
         SectionTitle("Downloads")
-        SettingsToggle("Download on WiFi only", prefs.downloadWifiOnly) { viewModel.updateDownloadWifiOnly(it) }
+        SettingsToggle("Download on Wi-Fi only", prefs.downloadWifiOnly) { viewModel.updateDownloadWifiOnly(it) }
         SettingsToggle("Auto-download liked songs", prefs.autoDownloadLiked) { viewModel.updateAutoDownloadLiked(it) }
+        SettingsClickItem("Clear Download Cache") { showClearCacheDialog = true }
 
         SettingsDivider()
 
@@ -125,23 +260,27 @@ fun SettingsScreen(
                 )
             }
         ) { }
-        SettingsClickItem("Open Source Licenses") { }
-        SettingsClickItem("Privacy Policy") { }
+        SettingsClickItem("Open Source Licenses") {
+            Toast.makeText(context, "SMusic uses ExoPlayer, Room, Ktor, Jetpack Compose", Toast.LENGTH_SHORT).show()
+        }
+        SettingsClickItem("Privacy Policy") {
+            Toast.makeText(context, "SMusic is 100% ad-free & does not collect telemetry.", Toast.LENGTH_SHORT).show()
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Developed by Surya with ❤️",
+                text = "Crafted with ❤️ for Music Lovers",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             Text(
-                text = "Version 1.0.0",
+                text = "SMusic v1.0.0 • Hybrid Edition",
                 style = MaterialTheme.typography.labelSmall,
                 color = TextMuted
             )
@@ -156,7 +295,8 @@ fun SectionTitle(title: String) {
     Text(
         text = title,
         style = MaterialTheme.typography.titleMedium,
-        color = AccentPrimary,
+        fontWeight = FontWeight.Bold,
+        color = Color(0xFF00E5FF),
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
     )
 }
@@ -175,10 +315,10 @@ fun SettingsToggle(title: String, checked: Boolean, onToggle: (Boolean) -> Unit)
             checked = checked,
             onCheckedChange = onToggle,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = TextPrimary,
-                checkedTrackColor = AccentPrimary,
+                checkedThumbColor = Color.White,
+                checkedTrackColor = Color(0xFFFA233B),
                 uncheckedThumbColor = TextMuted,
-                uncheckedTrackColor = CardElevated,
+                uncheckedTrackColor = Color.White.copy(alpha = 0.1f),
             ),
         )
     }
@@ -195,7 +335,7 @@ fun SettingsItem(title: String, value: String, modifier: Modifier = Modifier, on
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(title, color = TextPrimary, style = MaterialTheme.typography.bodyLarge)
-        Text(value, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+        Text(value, color = Color(0xFF00E5FF), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -228,15 +368,15 @@ fun SettingsSliderItem(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(title, color = TextPrimary, style = MaterialTheme.typography.bodyLarge)
-            Text(valueLabel, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            Text(valueLabel, color = Color(0xFF00E5FF), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
         }
         Slider(
             value = value,
             onValueChange = onValueChange,
             valueRange = range,
             colors = SliderDefaults.colors(
-                thumbColor = TextPrimary,
-                activeTrackColor = AccentPrimary,
+                thumbColor = Color.White,
+                activeTrackColor = Color(0xFF00E5FF),
                 inactiveTrackColor = Color.White.copy(alpha = 0.1f),
             ),
         )
@@ -245,5 +385,5 @@ fun SettingsSliderItem(
 
 @Composable
 fun SettingsDivider() {
-    Divider(color = BorderDivider, modifier = Modifier.padding(vertical = 8.dp))
+    Divider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 8.dp))
 }

@@ -1,49 +1,30 @@
 package com.smusic.app.presentation.downloads
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.smusic.app.domain.model.Song
 import com.smusic.app.presentation.components.EmptyState
 import com.smusic.app.presentation.components.SongRow
 import com.smusic.app.presentation.theme.*
@@ -55,11 +36,12 @@ fun DownloadsScreen(
     viewModel: DownloadsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(BgPrimary)
+            .background(Color(0xFF07090E))
             .statusBarsPadding()
     ) {
         item {
@@ -80,8 +62,11 @@ fun DownloadsScreen(
                     modifier = Modifier.weight(1f)
                 )
                 if (state.songs.isNotEmpty() || state.pendingDownloads.isNotEmpty()) {
-                    IconButton(onClick = { viewModel.deleteAll() }) {
-                        Icon(Icons.Filled.DeleteSweep, "Delete All", tint = Error)
+                    IconButton(onClick = {
+                        viewModel.deleteAll()
+                        Toast.makeText(context, "Deleted all downloads", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Icon(Icons.Filled.DeleteSweep, "Delete All", tint = Color(0xFFFA233B))
                     }
                 }
             }
@@ -187,27 +172,31 @@ fun DownloadsScreen(
                 Text(
                     text = "READY OFFLINE (${state.songs.size})",
                     style = MaterialTheme.typography.labelLarge,
-                    color = AccentPrimary,
+                    color = Color(0xFFFA233B),
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
 
-            items(state.songs) { song ->
-                SongRow(
+            items(state.songs, key = { it.videoId }) { song ->
+                DownloadedSongRowItem(
                     song = song,
-                    onClick = {
+                    onPlay = {
                         viewModel.serviceConnection.playSong(song, state.songs, "Downloads")
                         onNavigateToPlayer()
                     },
-                    trailing = {
-                        Icon(
-                            Icons.Filled.CheckCircle,
-                            contentDescription = "Downloaded Offline",
-                            tint = Color(0xFF00E676),
-                            modifier = Modifier.size(20.dp)
-                        )
+                    onDelete = {
+                        viewModel.deleteDownload(song.videoId)
+                        Toast.makeText(context, "Deleted from offline storage", Toast.LENGTH_SHORT).show()
+                    },
+                    onPlayNext = {
+                        viewModel.playNext(song)
+                        Toast.makeText(context, "Playing next", Toast.LENGTH_SHORT).show()
+                    },
+                    onAddToQueue = {
+                        viewModel.addToQueue(song)
+                        Toast.makeText(context, "Added to queue", Toast.LENGTH_SHORT).show()
                     }
                 )
             }
@@ -218,5 +207,63 @@ fun DownloadsScreen(
         }
 
         item { Spacer(modifier = Modifier.height(80.dp)) }
+    }
+}
+
+@Composable
+fun DownloadedSongRowItem(
+    song: Song,
+    onPlay: () -> Unit,
+    onDelete: () -> Unit,
+    onPlayNext: () -> Unit,
+    onAddToQueue: () -> Unit,
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    Box {
+        SongRow(
+            song = song,
+            onClick = onPlay,
+            onMoreClick = { showMenu = true },
+            trailing = {
+                Icon(
+                    Icons.Filled.CheckCircle,
+                    contentDescription = "Downloaded Offline",
+                    tint = Color(0xFF00E5FF),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
+
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+            modifier = Modifier.background(Color(0xFF131722))
+        ) {
+            DropdownMenuItem(
+                text = { Text("Play Next", color = TextPrimary) },
+                leadingIcon = { Icon(Icons.Filled.SkipNext, contentDescription = null, tint = Color(0xFF00E5FF)) },
+                onClick = {
+                    onPlayNext()
+                    showMenu = false
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Add to Queue", color = TextPrimary) },
+                leadingIcon = { Icon(Icons.Filled.QueueMusic, contentDescription = null, tint = Color(0xFF00E5FF)) },
+                onClick = {
+                    onAddToQueue()
+                    showMenu = false
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Delete Download", color = Color(0xFFFA233B)) },
+                leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFFA233B)) },
+                onClick = {
+                    onDelete()
+                    showMenu = false
+                }
+            )
+        }
     }
 }

@@ -56,6 +56,14 @@ class DownloadsViewModel @Inject constructor(
         viewModelScope.launch { downloadSongUseCase.deleteAllDownloads() }
     }
 
+    fun playNext(song: Song) {
+        serviceConnection.addToQueue(listOf(song))
+    }
+
+    fun addToQueue(song: Song) {
+        serviceConnection.addToQueue(listOf(song))
+    }
+
     fun formatSize(bytes: Long): String {
         return when {
             bytes < 1024 -> "$bytes B"

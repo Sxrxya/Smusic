@@ -34,7 +34,9 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -126,21 +128,11 @@ fun HomeScreen(
                     ) {
                         Icon(Icons.Filled.Search, "Search", tint = Color.White, modifier = Modifier.size(20.dp))
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = onNavigateToSettings,
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.08f))
-                    ) {
-                        Icon(Icons.Filled.Settings, "Settings", tint = TextSecondary, modifier = Modifier.size(20.dp))
-                    }
                 }
             }
         }
 
-        // Spotify-style Filter Pills (All, Music, Podcasts, Trending)
+        // Spotify-style Filter Pills (All, Music, Trending, Party, Relax, Workout)
         item {
             Row(
                 modifier = Modifier
@@ -184,7 +176,74 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(14.dp))
         }
 
-        // Spotify-style 6-Grid Quick Access Cards (Liked, Recently Played, Hits)
+        // If mood filter is active, display the curated mood feed
+        if (selectedFilterPill != "All" && selectedFilterPill != "Music") {
+            val moodTracks = if (selectedFilterPill == "Trending") state.trendingSongs else state.moodSongs
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "$selectedFilterPill Mix",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Curated songs for your mood",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+                    if (moodTracks.isNotEmpty()) {
+                        IconButton(
+                            onClick = {
+                                viewModel.playSong(moodTracks.first(), moodTracks, "$selectedFilterPill Mix")
+                                onNavigateToPlayer()
+                            },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFFA233B))
+                        ) {
+                            Icon(Icons.Filled.PlayArrow, "Play All", tint = Color.White, modifier = Modifier.size(24.dp))
+                        }
+                    }
+                }
+            }
+
+            if (moodTracks.isEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(40.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(color = Color(0xFF00E5FF), modifier = Modifier.size(28.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text("Curating $selectedFilterPill tracks…", color = TextSecondary)
+                    }
+                }
+            } else {
+                items(moodTracks, key = { "mood_${selectedFilterPill}_${it.videoId}" }) { song ->
+                    SongRow(
+                        song = song,
+                        onClick = {
+                            viewModel.playSong(song, moodTracks, "$selectedFilterPill Mix")
+                            onNavigateToPlayer()
+                        }
+                    )
+                }
+            }
+        } else {
+            // Default full home sections
+        
         if (state.recentlyPlayed.isNotEmpty() || state.trendingSongs.isNotEmpty()) {
             item {
                 val gridItems = (state.recentlyPlayed + state.trendingSongs).distinctBy { it.videoId }.take(6)
@@ -471,6 +530,7 @@ fun HomeScreen(
                 selectedLanguage = state.selectedLanguage,
                 onLanguageSelected = viewModel::onLanguageSelected,
             )
+        }
         }
     }
 }

@@ -65,7 +65,8 @@ class DownloadRepository @Inject constructor(
             .setInputData(
                 workDataOf(
                     "videoId" to song.videoId,
-                    "title" to song.title
+                    "title" to song.title,
+                    "artist" to song.artist
                 )
             )
             .addTag("download_${song.videoId}")

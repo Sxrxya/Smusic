@@ -31,6 +31,7 @@ data class PlayerUiState(
     val isLiked: Boolean = false,
     val isDownloaded: Boolean = false,
     val isDownloading: Boolean = false,
+    val downloadProgress: Int = 0,
     val showLyrics: Boolean = false,
     val showQueue: Boolean = false,
     val showAddToPlaylist: Boolean = false,
@@ -101,9 +102,11 @@ class PlayerViewModel @Inject constructor(
             downloadRepository.getDownloadByIdFlow(videoId).collectLatest { entity ->
                 val isDownloaded = entity?.state == DownloadState.DOWNLOADED.name
                 val isDownloading = entity?.state == DownloadState.DOWNLOADING.name || entity?.state == DownloadState.QUEUED.name
+                val progress = entity?.progress ?: 0
                 _uiState.value = _uiState.value.copy(
                     isDownloaded = isDownloaded,
-                    isDownloading = isDownloading
+                    isDownloading = isDownloading,
+                    downloadProgress = progress
                 )
             }
         }

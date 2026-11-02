@@ -12,6 +12,17 @@ import com.smusic.app.data.db.entity.PlaylistSongCrossRef
 import com.smusic.app.data.db.entity.SongEntity
 import kotlinx.coroutines.flow.Flow
 
+data class PlaylistWithCount(
+    val playlistId: Long,
+    val name: String,
+    val thumbnailUrl: String,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val isPinned: Boolean,
+    val sortOrder: Int,
+    val songCount: Int,
+)
+
 @Dao
 interface PlaylistDao {
 
@@ -26,6 +37,25 @@ interface PlaylistDao {
 
     @Query("SELECT * FROM playlists ORDER BY isPinned DESC, sortOrder ASC, createdAt DESC")
     fun getAllPlaylists(): Flow<List<PlaylistEntity>>
+
+    @Query("""
+        SELECT 
+            p.playlistId,
+            p.name,
+            COALESCE(
+                NULLIF(p.thumbnailUrl, ''),
+                (SELECT s.thumbnailUrl FROM songs s INNER JOIN playlist_song_cross_ref ref ON s.videoId = ref.videoId WHERE ref.playlistId = p.playlistId ORDER BY ref.addedAt DESC LIMIT 1),
+                ''
+            ) AS thumbnailUrl,
+            p.createdAt,
+            p.updatedAt,
+            p.isPinned,
+            p.sortOrder,
+            (SELECT COUNT(*) FROM playlist_song_cross_ref ref WHERE ref.playlistId = p.playlistId) AS songCount
+        FROM playlists p
+        ORDER BY p.isPinned DESC, p.sortOrder ASC, p.createdAt DESC
+    """)
+    fun getAllPlaylistsWithCount(): Flow<List<PlaylistWithCount>>
 
     @Query("SELECT * FROM playlists WHERE playlistId = :playlistId")
     suspend fun getPlaylistById(playlistId: Long): PlaylistEntity?
